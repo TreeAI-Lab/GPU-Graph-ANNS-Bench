@@ -1,0 +1,13 @@
+name	repository	commit	patch	used_for
+song	https://github.com/sunbelbd/song.git	9cb1f486fd72828128d65bc2b107d2c5c6799bf0		SONG builds and search (revision experiments)
+ggnn	https://github.com/cgtuebingen/ggnn.git	2d03b36362bc824e37099092eabb95172ec18b64		GGNN builds and search (revision experiments)
+ganns	https://github.com/yuyuanhang/GANNS.git	855e2cad3390acfd9c8308cb020ed5dbe69aec35		GANNS builds and search (revision experiments)
+cuvs	https://github.com/rapidsai/cuvs.git	fac323dae6ae798356675464f5c0195321afdc8e	cuvs_no_reverse.patch	CAGRA search driver, IVF-PQ, brute force; CAGRA without reverse edges (Figure 16)
+bang	https://github.com/karthik86248/BANG-Billion-Scale-ANN.git	e5a7c4d768fe6be6d1a18aacdc108855028bf165	bang.patch	BANG search
+pilotann	https://github.com/ytgui/PilotANN.git	0aee5f6c5d34158587d95e2aa5309c9a9529943a	pilotann.patch	PilotANN builds and search
+faiss	https://github.com/facebookresearch/faiss.git	b0d9e80288daa678493d46c975ae92d1c6eced6d		Faiss IVF-PQ (GPU) and HNSW (CPU)
+diskann	https://github.com/microsoft/DiskANN.git	78256bbab4685e1774e78d331e081a153be26823		Vamana graphs for Vamana and BANG
+song-orig	https://github.com/sunbelbd/song.git	fa2d7555190b0751953bea715b1b55c0ca79ec15	song_orig.patch	original-manuscript SONG runs (iteration limit, counters); SONG graph builder of the QPS-recall figures
+ggnn-orig	https://github.com/cgtuebingen/ggnn.git	adfcf96ab6812bf24f6e38cac4a63ab9681aed71	ggnn_orig.patch	original-manuscript GGNN runs (counters, stage clocks); sharded DEEP100M GGNN graph
+ganns-orig	https://github.com/yuyuanhang/GANNS.git	dd296b766f354468b24de152db4911bb51300615	ganns_orig.patch	original-manuscript GANNS runs (stage clocks, counters, graph analysis)
+diskann-orig	https://github.com/microsoft/DiskANN.git	1f08328e25f2476286352bb93de19c158aef1fea	diskann_orig.patch	original-manuscript Vamana runs (stage timers, counters)

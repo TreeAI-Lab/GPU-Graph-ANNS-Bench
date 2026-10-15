@@ -1,0 +1,594 @@
+diff --git a/config.h b/config.h
+index 473e8dd..adea1ed 100644
+--- a/config.h
++++ b/config.h
+@@ -19,10 +19,10 @@ typedef int UINT;
+ #define ACC_BATCH_SIZE 1000000
+ 
+ //for GPU
+-#define FIXED_DEGREE 31
+-#define FIXED_DEGREE_SHIFT 5
++#define FIXED_DEGREE 32
++#define FIXED_DEGREE_SHIFT 6
+ 
+ //for CPU construction
+-#define SEARCH_DEGREE 15
+-#define CONSTRUCT_SEARCH_BUDGET 150
++#define SEARCH_DEGREE 16
++#define CONSTRUCT_SEARCH_BUDGET 160
+ 
+diff --git a/graph.h b/graph.h
+index 4893989..04e6d7a 100644
+--- a/graph.h
++++ b/graph.h
+@@ -7,6 +7,7 @@
+ #include"data.h"
+ #include<random>
+ #include<unordered_set>
++extern unsigned long long dis_count;
+ 
+ class GraphWrapper{
+ public:
+@@ -177,6 +178,7 @@ public:
+             if(visited.count(start))
+                 continue;
+             visited.insert(start);
++            dis_count++;
+             q.push(std::make_pair(pair_distance_naive(start,converted_query),start));
+         }
+         std::priority_queue<std::pair<dist_t,idx_t>> topk;
+@@ -201,6 +203,7 @@ public:
+                     continue;
+                 q.push(std::make_pair(pair_distance_naive(start,converted_query),start));
+                 auto tmp = pair_distance_naive(start,converted_query);
++                dis_count++;
+                 visited.insert(start);
+             }
+         }
+diff --git a/hashkernelgraph.h b/hashkernelgraph.h
+index 4fe2cb7..2bb28d2 100644
+--- a/hashkernelgraph.h
++++ b/hashkernelgraph.h
+@@ -12,12 +12,14 @@
+ #include"astar_accelerator.h"
+ #include"hash_warp_no_heap_astar_accelerator.h"
+ 
++extern unsigned long long dis_count;
++
+ template<const int dist_type>
+ class HashKernelGraph /*: public GraphWrapper*/{
+ private:
+-    const int degree = 15;//255;//31;
+-    const int flexible_degree = degree * 2 + 1;
+-    const int vertex_offset_shift = 5;//8;//5;
++    const int degree = FIXED_DEGREE / 2;//255;//31;
++    const int flexible_degree = FIXED_DEGREE;
++    const int vertex_offset_shift = FIXED_DEGREE_SHIFT;//8;//5;
+     std::vector<idx_t> edges;
+     std::vector<dist_t> edge_dist;
+     Data* data;
+diff --git a/kernelgraph.h b/kernelgraph.h
+index 44c11db..420163d 100644
+--- a/kernelgraph.h
++++ b/kernelgraph.h
+@@ -17,16 +17,16 @@ public:
+     virtual void search_top_k(const std::vector<std::pair<int,value_t>>& query,int k,std::vector<idx_t>& result) = 0;
+     virtual void dump(std::string file = "bfsg.graph") = 0;
+     virtual void load(std::string file = "bfsg.graph") = 0;
+-	virtual void search_top_k_batch(const std::vector<std::vector<std::pair<int,value_t>>>& queries,int k,std::vector<std::vector<idx_t>>& results){};
++	virtual void search_top_k_batch(const std::vector<std::vector<std::pair<int,value_t>>>& queries,int k,std::vector<std::vector<idx_t>>& results,unsigned long long& calculate_count, unsigned long long& path_length, int max_iterations){};
+ 	virtual ~GraphWrapper(){};
+ };
+ 
+ template<const int dist_type>
+ class KernelFixedDegreeGraph : public GraphWrapper{
+ private:
+-    const int degree = 15;//255;//31;
+-    const int flexible_degree = degree * 2 + 1;
+-    const int vertex_offset_shift = 5;//8;//5;
++    const int degree = FIXED_DEGREE / 2;//255;//31;
++    const int flexible_degree = FIXED_DEGREE;
++    const int vertex_offset_shift = FIXED_DEGREE_SHIFT;//8;//5;
+     std::vector<idx_t> edges;
+     std::vector<dist_t> edge_dist;
+     Data* data;
+@@ -266,8 +266,8 @@ public:
+         fclose(fp);
+     }
+     
+-	void search_top_k_batch(const std::vector<std::vector<std::pair<int,value_t>>>& queries,int k,std::vector<std::vector<idx_t>>& results){
+-    	WarpAStarAccelerator::astar_multi_start_search_batch(queries,k,results,data->get(0),edges.data(),vertex_offset_shift,data->max_vertices(),data->get_dim());
++	void search_top_k_batch(const std::vector<std::vector<std::pair<int,value_t>>>& queries,int k,std::vector<std::vector<idx_t>>& results, unsigned long long& calculate_count, unsigned long long& path_length, int max_iterations){
++        WarpAStarAccelerator::astar_multi_start_search_batch(queries,k,results,data->get(0),edges.data(),vertex_offset_shift,data->max_vertices(),data->get_dim(),calculate_count,path_length,max_iterations);
+         //fprintf(stderr,"finished one batch\n");
+     }
+ 
+diff --git a/main.cc b/main.cc
+index d56fefa..f3d9285 100644
+--- a/main.cc
++++ b/main.cc
+@@ -22,6 +22,7 @@ std::unique_ptr<GraphWrapper> graph;
+ int topk = 0;
+ int display_topk = 1;
+ BitHash bithash;
++unsigned long long dis_count = 0;
+ 
+ void build_callback(idx_t idx,std::vector<std::pair<int,value_t>> point){
+ 	#ifdef __ENABLE_HASH
+@@ -95,6 +96,7 @@ int main(int argc,char** argv){
+         graph->load();
+         fprintf(stderr,"done\n");    
+         std::unique_ptr<Parser> query_parser(new Parser(argv[3],query_callback));
++        printf("distance_count: %llu\n",dis_count);
+     }else{
+         usage(argv);
+         return 1;
+diff --git a/main.cu b/main.cu
+index b9c95ad..a3def31 100644
+--- a/main.cu
++++ b/main.cu
+@@ -1,5 +1,7 @@
+ #include<stdio.h>
++#include<iostream>
+ #include<string.h>
++#include <chrono>
+ #include"logger.h"
+ #include"parser_dense.h"
+ #include"parser.h"
+@@ -11,6 +13,9 @@ std::unique_ptr<Data> data;
+ std::unique_ptr<GraphWrapper> graph; 
+ int topk = 0;
+ int display_topk = 1;
++unsigned long long calculate_count = 0;
++unsigned long long path_length = 100;
++int max_iterations = 150;
+ 
+ void build_callback(idx_t idx,std::vector<std::pair<int,value_t>> point){
+     data->add(idx,point);
+@@ -23,8 +28,13 @@ std::vector<std::vector<idx_t>> results(ACC_BATCH_SIZE);
+ void flush_queries(){
+ 	results.resize(batch_queries.size());
+ 	const int repeat = 1; // NOTICE: You can repeat multiple times to have an average search performance
++    auto g_start_time = std::chrono::high_resolution_clock::now();
+ 	for(int i = 0;i < repeat;++i)
+-	    graph->search_top_k_batch(batch_queries,topk,results);
++	    graph->search_top_k_batch(batch_queries,topk,results,calculate_count,path_length,max_iterations);
++
++    auto g_end_time = std::chrono::high_resolution_clock::now();
++    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(g_end_time - g_start_time);
++    std::cout<<"Search time: "<<duration.count()<<"ms"<<std::endl;
+     for(int i = 0;i < batch_queries.size();++i){
+         auto& result = results[i];
+         for(int i = 0;i < result.size() && i < display_topk;++i)
+@@ -47,11 +57,11 @@ void query_callback(idx_t idx,std::vector<std::pair<int,value_t>> point){
+ 
+ 
+ void usage(char** argv){
+-    printf("Usage: %s <build/test> <build_data> <query_data> <search_top_k> <row> <dim> <return_top_k> <l2/ip/cos>\n",argv[0]);
++    printf("Usage: %s <build/test> <build_data> <query_data> <search_top_k> <row> <dim> <return_top_k> <l2/ip/cos> <max_iterations> <graph_file>\n", argv[0]);
+ }
+ 
+ int main(int argc,char** argv){
+-    if(argc != 9){
++    if (argc != 11) {
+         usage(argv);
+         return 1;
+     }
+@@ -62,6 +72,8 @@ int main(int argc,char** argv){
+ 	int dim = atoi(argv[6]);
+ 	display_topk = atoi(argv[7]);
+ 	std::string dist_type = argv[8];
++    max_iterations = atoi(argv[9]);
++    auto graph_dir = std::string(argv[10]);
+ 	data = std::unique_ptr<Data>(new Data(row,dim));
+ 	if(dist_type == "l2"){
+ 		graph = std::unique_ptr<GraphWrapper>(new KernelFixedDegreeGraph<0>(data.get())); 
+@@ -76,22 +88,27 @@ int main(int argc,char** argv){
+     std::string mode = std::string(argv[1]);
+     topk = atoi(argv[4]);
+     if(mode == "build"){
++        auto start_time = std::chrono::high_resolution_clock::now();
+         //std::unique_ptr<ParserDense> build_parser(new ParserDense(argv[2],build_callback));
+         std::unique_ptr<Parser> build_parser(new Parser(argv[2],build_callback));
++        auto end_time = std::chrono::high_resolution_clock::now();
++        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
++        std::cout<<"Build time: "<<duration.count()<<"ms"<<std::endl;
+         fprintf(stderr,"Writing the graph and data...");    
+-        data->dump();
+         fprintf(stderr,"...");    
+-        graph->dump();
++        graph->dump(graph_dir + ".graph");
+         fprintf(stderr,"done\n");    
+     }else if(mode == "test"){
+         fprintf(stderr,"Loading the graph and data...");    
+-        data->load();
++        data->load(graph_dir + "/bfsg.data");
+         fprintf(stderr,"...");    
+-        graph->load();
++        graph->load(graph_dir + "/bfsg.graph");
+         fprintf(stderr,"done\n");    
+         //std::unique_ptr<ParserDense> query_parser(new ParserDense(argv[3],query_callback));
+         std::unique_ptr<Parser> query_parser(new Parser(argv[3],query_callback));
+ 		flush_queries();	
++        std::cout<< "calculate_count: " << calculate_count << std::endl;
++        std::cout<< "path_length: " << path_length << std::endl;
+     }else{
+         usage(argv);
+         return 1;
+diff --git a/parser.h b/parser.h
+index a0d0cfd..b518948 100644
+--- a/parser.h
++++ b/parser.h
+@@ -1,66 +1,85 @@
+ #pragma once
+ 
+-#include"config.h"
+-#include"logger.h"
+-#include<stdlib.h>
+-#include<memory>
+-#include<vector>
+-#include<functional>
++#include "config.h"
++#include "logger.h"
++#include <stdlib.h>
++#include <memory>
++#include <vector>
++#include <functional>
++#include <fstream>
++#include <string>
++#include <cstring>
+ 
++class Parser {
++private:
++    std::function<void(idx_t, std::vector<std::pair<int, value_t>>)> consume;
+ 
++    static bool ends_with(const std::string& s, const char* suf) {
++        size_t n = std::strlen(suf);
++        return s.size() >= n && s.compare(s.size() - n, n, suf) == 0;
++    }
+ 
+-class Parser{
+-private:
+-	const int ONE_BASED_LIBSVM = 1;
+-    const int MAX_LINE = 10000000;
+-    std::function<void(idx_t,std::vector<std::pair<int,value_t>>)> consume;
++    void emit_vec(idx_t idx, const float* v, int dim) {
++        std::vector<std::pair<int, value_t>> values;
++        values.reserve(dim);
++        for (int i = 0; i < dim; ++i)
++            values.push_back({i, static_cast<value_t>(v[i])});
++        consume(idx, values);
++    }
+ 
+-    std::vector<int> tokenize(char* buff){
+-        std::vector<int> ret;
+-        int i = 0;
+-        while(*(buff + i) != '\0'){
+-            if(*(buff + i) == ':' || *(buff + i) == ' ')
+-                ret.push_back(i);
+-            ++i;
++    void load_fvecs(const char* path) {
++        std::ifstream fin(path, std::ios::binary);
++        if (!fin.is_open()) {
++            Logger::log(Logger::ERROR, "File not found at (%s)\n", path);
++            exit(1);
++        }
++        idx_t idx = 0;
++        while (true) {
++            int dim = 0;
++            fin.read(reinterpret_cast<char*>(&dim), sizeof(int));
++            if (!fin) break;
++            std::vector<float> vec(dim);
++            fin.read(reinterpret_cast<char*>(vec.data()), sizeof(float) * dim);
++            if (!fin) break;
++            emit_vec(idx++, vec.data(), dim);
+         }
+-        return ret;
+     }
+ 
+-    std::vector<std::pair<int,value_t>> parse(std::vector<int> tokens,char* buff){
+-        std::vector<std::pair<int,value_t>> ret;
+-        ret.reserve(tokens.size() / 2);
+-        for(int i = 0;i + 1 < tokens.size();i += 2){
+-            int index;
+-            value_t val;
+-            sscanf(buff + tokens[i] + 1,"%d",&index);
+-			index -= ONE_BASED_LIBSVM;
+-			double tmp;
+-            sscanf(buff + tokens[i + 1] + 1,"%lf",&tmp);
+-			val = tmp;
+-            ret.push_back(std::make_pair(index,val));
++    void load_fbin(const char* path) {
++        std::ifstream fin(path, std::ios::binary);
++        if (!fin.is_open()) {
++            Logger::log(Logger::ERROR, "File not found at (%s)\n", path);
++            exit(1);
++        }
++        int n = 0, dim = 0;
++        fin.read(reinterpret_cast<char*>(&n), sizeof(int));
++        fin.read(reinterpret_cast<char*>(&dim), sizeof(int));
++        if (!fin || n <= 0 || dim <= 0) {
++            Logger::log(Logger::ERROR, "Bad fbin header at (%s)\n", path);
++            exit(1);
++        }
++        std::vector<float> vec(dim);
++        for (int i = 0; i < n; ++i) {
++            fin.read(reinterpret_cast<char*>(vec.data()), sizeof(float) * dim);
++            if (!fin) {
++                Logger::log(Logger::ERROR, "Short read in fbin (%s) at %d/%d\n", path, i, n);
++                exit(1);
++            }
++            emit_vec(static_cast<idx_t>(i), vec.data(), dim);
+         }
+-        return ret;
+     }
+ 
+-
+ public:
+-
+-    Parser(const char* path,std::function<void(idx_t,std::vector<std::pair<int,value_t>>)> consume) : consume(consume){
+-        auto fp = fopen(path,"r");
+-        if(fp == NULL){
+-            Logger::log(Logger::ERROR,"File not found at (%s)\n",path);
+-            exit(1);
+-        }
+-        std::unique_ptr<char[]> buff(new char[MAX_LINE]);
+-        std::vector<std::string> buffers;
+-        idx_t idx = 0;
+-        while(fgets(buff.get(),MAX_LINE,fp)){
+-            auto tokens = tokenize(buff.get());
+-            auto values = parse(tokens,buff.get());
+-            consume(idx,values);
+-            ++idx;
++    Parser(const char* path, std::function<void(idx_t, std::vector<std::pair<int, value_t>>)> consume)
++        : consume(consume)
++    {
++        std::string p(path);
++        if (ends_with(p, ".fbin")) {
++            load_fbin(path);
++        } else if (ends_with(p, ".fvecs") || ends_with(p, ".bvecs")) {
++            load_fvecs(path);
++        } else {
++            load_fvecs(path);
+         }
+-        fclose(fp);
+     }
+-    
+ };
+diff --git a/parser_sparse.h b/parser_sparse.h
+index 3846a23..e497030 100644
+--- a/parser_sparse.h
++++ b/parser_sparse.h
+@@ -41,23 +41,38 @@ private:
+ 
+ public:
+ 
+-    ParserSparse(const char* path,std::function<void(idx_t,std::vector<std::pair<int,value_t>>)> consume) : consume(consume){
+-        auto fp = fopen(path,"r");
+-        if(fp == NULL){
+-            Logger::log(Logger::ERROR,"File not found at (%s)\n",path);
+-            exit(1);
+-        }
+-        std::unique_ptr<char[]> buff(new char[MAX_LINE]);
+-        std::vector<std::string> buffers;
+-        idx_t idx = 0;
+-        while(fgets(buff.get(),MAX_LINE,fp)){
+-            auto tokens = tokenize(buff.get());
+-            auto values = parse(tokens,buff.get());
+-            consume(idx,values);
+-            ++idx;
++    ParserSparse(const char* path, std::function<void(idx_t, std::vector<std::pair<int,value_t>>)> consume)
++    : consume(consume)
++{
++    std::ifstream fin(path, std::ios::binary);
++    if (!fin.is_open()) {
++        Logger::log(Logger::ERROR, "File not found at (%s)\n", path);
++        exit(1);
++    }
++
++    idx_t idx = 0;
++    while (true) {
++        int dim = 0;
++        fin.read(reinterpret_cast<char*>(&dim), sizeof(int));
++        if (!fin) break;
++
++        std::vector<float> vec(dim);
++        fin.read(reinterpret_cast<char*>(vec.data()), sizeof(float) * dim);
++        if (!fin) break;
++
++        std::vector<std::pair<int, value_t>> values;
++        values.reserve(dim);
++        for (int i = 0; i < dim; ++i) {
++            values.push_back({i, static_cast<value_t>(vec[i])});
+         }
+-        fclose(fp);
++
++        consume(idx, values);
++        ++idx;
+     }
++
++    fin.close();
++}
++
+     
+ };
+ 
+diff --git a/warp_astar_accelerator.h b/warp_astar_accelerator.h
+index 151008a..e5b1852 100644
+--- a/warp_astar_accelerator.h
++++ b/warp_astar_accelerator.h
+@@ -42,8 +42,8 @@ void warp_independent_search_kernel(value_t* d_data,value_t* d_query,idx_t* d_re
+ #ifdef __ENABLE_MEASURE
+ ,Measure* measure
+ #endif
+-){
+-	const int QUEUE_SIZE = TOPK;
++,unsigned long long* calculate_cnt, unsigned long long* path_len, int max_iterations){
++	const int QUEUE_SIZE = max_iterations - 1;
+ 	#define DIM 960
+     int bid = blockIdx.x * N_MULTIQUERY;
+ 	const int step = N_THREAD_IN_WARP;
+@@ -85,7 +85,7 @@ void warp_independent_search_kernel(value_t* d_data,value_t* d_query,idx_t* d_re
+ 	if(subtid == 0){
+ 		dist_list = new value_t[FIXED_DEGREE * N_MULTIPROBE];
+ 		q= new KernelPair<dist_t,idx_t>[QUEUE_SIZE + 2];
+-		topk = new KernelPair<dist_t,idx_t>[TOPK + 1];
++		topk = new KernelPair<dist_t,idx_t>[QUEUE_SIZE + 1];
+     	//pbf = new BloomFilter<64,6,7>();
+ #ifdef __ENABLE_FIXHASH
+ 		pbf = new FixHash<int,HASH_TABLE_CAPACITY>();
+@@ -102,10 +102,14 @@ void warp_independent_search_kernel(value_t* d_data,value_t* d_query,idx_t* d_re
+ 
+     __shared__ value_t query_point[N_MULTIQUERY][DIM];
+ 
++	int iter;
+ 	__shared__ int finished[N_MULTIQUERY];
+ 	__shared__ idx_t index_list[N_MULTIQUERY][FIXED_DEGREE * N_MULTIPROBE];
+-	__shared__ char index_list_len[N_MULTIQUERY];
++	__shared__ int index_list_len[N_MULTIQUERY];
+ 	value_t start_distance;
++	if(subtid == 0){
++		iter = 0;
++	}
+ 	__syncthreads();
+ 
+ 	value_t tmp[N_MULTIQUERY];
+@@ -185,11 +189,14 @@ void warp_independent_search_kernel(value_t* d_data,value_t* d_query,idx_t* d_re
+ 			KernelPair<dist_t,idx_t> now;
+ 			if(subtid == 0){
+ 				now = smmh2::pop_min(q,heap_size[cid]);
++				atomicAdd(&path_len[0],1ULL);
++				iter+=1;
+ #ifdef __ENABLE_VISITED_DEL
+ 				pbf->del(now.second);
+ #endif
+-				if(k == 0 && topk_heap_size == TOPK && (topk[0].first <= now.first)){
++				if((k == 0 && topk_heap_size == QUEUE_SIZE)|| iter >= max_iterations){
+ 					++finished[cid];
++					iter = 0;
+ 				}
+ 			}
+ 			__syncthreads();
+@@ -201,7 +208,7 @@ void warp_independent_search_kernel(value_t* d_data,value_t* d_query,idx_t* d_re
+ #ifdef __ENABLE_VISITED_DEL
+ 				pbf->add(now.second);
+ #endif
+-				if(topk_heap_size > TOPK){
++				if(topk_heap_size > QUEUE_SIZE){
+ #ifdef __ENABLE_VISITED_DEL
+ 					pbf->del(topk[0].second);
+ #endif
+@@ -268,6 +275,7 @@ void warp_independent_search_kernel(value_t* d_data,value_t* d_query,idx_t* d_re
+ 					#endif
+ 				}
+ 				if(tid == nq * CRITICAL_STEP){
++					atomicAdd(&calculate_cnt[0],1ULL);
+ 					#ifdef __USE_L2_DIST
+ 					dist_list[i] = tmp;
+ 					#elif __USE_IP_DIST
+@@ -329,9 +337,9 @@ void warp_independent_search_kernel(value_t* d_data,value_t* d_query,idx_t* d_re
+     }
+ 
+ 	if(subtid == 0){
+-		for(int i = 0;i < TOPK;++i){
++		for(int i = 0;i < QUEUE_SIZE;++i){
+ 			auto now = pop_heap(topk,topk + topk_heap_size - i);
+-			d_result[(bid + cid) * TOPK + TOPK - 1 - i] = now.second;
++			d_result[(bid + cid) * QUEUE_SIZE + QUEUE_SIZE - 1 - i] = now.second;
+ 		}
+ 		delete[] q;
+ 		delete[] topk;
+@@ -344,16 +352,19 @@ class WarpAStarAccelerator{
+ private:
+ 
+ public:
+-    static void astar_multi_start_search_batch(const std::vector<std::vector<std::pair<int,value_t>>>& queries,int k,std::vector<std::vector<idx_t>>& results,value_t* h_data,idx_t* h_graph,int vertex_offset_shift,int num,int dim){
++    static void astar_multi_start_search_batch(const std::vector<std::vector<std::pair<int,value_t>>>& queries,int k,std::vector<std::vector<idx_t>>& results,value_t* h_data,idx_t* h_graph,int vertex_offset_shift,int num,int dim, unsigned long long& calculate_count, unsigned long long& path_length, int max_iterations){
+         value_t* d_data;
+ 		value_t* d_query;
++		unsigned long long* calculate_cnt;
++		unsigned long long* path_len;
+ 		idx_t* d_result;
+ 		idx_t* d_graph;
+ 		
++		int new_size = max_iterations - 1;
+ 		cudaMalloc(&d_data,sizeof(value_t) * num * dim);
+ 		cudaMalloc(&d_graph,sizeof(idx_t) * (num << vertex_offset_shift));
+-		cudaMemcpy(d_data,h_data,sizeof(value_t) * num * dim,cudaMemcpyHostToDevice);
+-		cudaMemcpy(d_graph,h_graph,sizeof(idx_t) * (num << vertex_offset_shift),cudaMemcpyHostToDevice);
++		cudaMalloc(&calculate_cnt,sizeof(unsigned long long));
++		cudaMalloc(&path_len,sizeof(unsigned long long));
+ 
+ #ifdef __ENABLE_MEASURE
+ 		Measure* d_measure;
+@@ -362,7 +373,6 @@ public:
+ 		cudaMemcpy(d_measure,&h_measure,sizeof(Measure),cudaMemcpyHostToDevice);
+ #endif
+ 
+-		auto time_begin = std::chrono::steady_clock::now();
+ 		std::unique_ptr<value_t[]> h_query = std::unique_ptr<value_t[]>(new value_t[queries.size() * dim]);
+ 		memset(h_query.get(),0,sizeof(value_t) * queries.size() * dim);
+ 		for(int i = 0;i < queries.size();++i){
+@@ -370,10 +380,15 @@ public:
+ 				*(h_query.get() + i * dim + p.first) = p.second;
+ 			}
+ 		}
+-		std::unique_ptr<idx_t[]> h_result = std::unique_ptr<idx_t[]>(new idx_t[queries.size() * TOPK]);
+-
++		std::unique_ptr<idx_t[]> h_result = std::unique_ptr<idx_t[]>(new idx_t[queries.size() * new_size]);
+ 		cudaMalloc(&d_query,sizeof(value_t) * queries.size() * dim);
+-		cudaMalloc(&d_result,sizeof(idx_t) * queries.size() * TOPK);
++		cudaMalloc(&d_result,sizeof(idx_t) * queries.size() * new_size);
++		auto time_begin = std::chrono::steady_clock::now();
++		cudaMemcpy(path_len,&path_length,sizeof(unsigned long long),cudaMemcpyHostToDevice);
++		cudaMemcpy(calculate_cnt,&calculate_count,sizeof(unsigned long long),cudaMemcpyHostToDevice);
++		cudaMemcpy(d_data,h_data,sizeof(value_t) * num * dim,cudaMemcpyHostToDevice);
++		cudaMemcpy(d_graph,h_graph,sizeof(idx_t) * (num << vertex_offset_shift),cudaMemcpyHostToDevice);
++
+ 		
+ 		cudaMemcpy(d_query,h_query.get(),sizeof(value_t) * queries.size() * dim,cudaMemcpyHostToDevice);
+ 
+@@ -387,7 +402,7 @@ public:
+ #ifdef __ENABLE_MEASURE
+ , d_measure
+ #endif
+-		);
++		,calculate_cnt,path_len,max_iterations);
+ 
+ #ifdef __ENABLE_MEASURE
+ 		cudaDeviceSynchronize();
+@@ -395,7 +410,9 @@ public:
+ 		fprintf(stderr,"kernel takes %ld microseconds\n",std::chrono::duration_cast<std::chrono::microseconds>(kernel_end - kernel_begin).count());
+ 		std::chrono::steady_clock::time_point back_begin = std::chrono::steady_clock::now();
+ #endif
+-		cudaMemcpy(h_result.get(),d_result,sizeof(idx_t) * queries.size() * TOPK,cudaMemcpyDeviceToHost);
++		cudaMemcpy(h_result.get(),d_result,sizeof(idx_t) * queries.size() * new_size,cudaMemcpyDeviceToHost);
++		cudaMemcpy(&calculate_count, calculate_cnt, sizeof(unsigned long long), cudaMemcpyDeviceToHost);
++		cudaMemcpy(&path_length, path_len, sizeof(unsigned long long), cudaMemcpyDeviceToHost);
+ 
+ #ifdef __ENABLE_MEASURE
+ 		std::chrono::steady_clock::time_point back_end = std::chrono::steady_clock::now();
+@@ -408,9 +425,9 @@ public:
+ #endif
+ 		results.clear();
+ 		for(int i = 0;i < queries.size();++i){
+-			std::vector<idx_t> v(TOPK);
+-			for(int j = 0;j < TOPK;++j)
+-				v[j] = h_result[i * TOPK + j];
++			std::vector<idx_t> v(new_size);
++			for(int j = 0;j < new_size;++j)
++				v[j] = h_result[i * new_size + j];
+ 			results.push_back(v);
+ 		}
+ 		std::chrono::steady_clock::time_point time_end = std::chrono::steady_clock::now();
+@@ -418,8 +435,10 @@ public:
+ 		//printf("using %ld microseconds\n",std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_begin).count());
+ 		cudaFree(d_data);
+ 		cudaFree(d_query);
++		cudaFree(path_len);
+ 		cudaFree(d_result);
+ 		cudaFree(d_graph);
++		cudaFree(calculate_cnt);
+     }
+ };
+ 

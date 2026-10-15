@@ -1,0 +1,19 @@
+# PilotANN and Faiss HNSW (CPU). PyTorch is installed with pip, see create_envs.sh
+name: pilot
+channels: [pytorch, conda-forge]
+dependencies:
+  - python=3.12
+  - pytorch::faiss-cpu=1.15.1
+  - cuda-version=12.4
+  - cuda-nvcc=12.4
+  - cuda-cudart-dev=12.4
+  - libcublas-dev
+  - libcusparse-dev
+  - libcurand-dev
+  - cxx-compiler
+  - gcc_linux-64=12
+  - gxx_linux-64=12
+  - numpy
+  - h5py
+  - tqdm
+  - pip

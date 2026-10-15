@@ -1,0 +1,17 @@
+dataset,algo,config,nlist,m,max_recall_at_1,max_recall_at_10,max_recall_at_100,nprobe_at_max_r10,qps_at_max_r10,kernel_ms_at_max_r10,selection_rule
+deep100M,cuvs_ivf_pq,nlist131072_m16,131072,16,0.378400,0.819900,0.983400,3584,6045.146,1654.2197,"max recall_at_10 over nprobe; ties: recall_at_1, then qps_kernel"
+deep100M,faiss_ivf_pq,nlist131072_m16,131072,16,0.374200,0.822600,0.984500,1536,2617.607,3820.2830,"max recall_at_10 over nprobe; ties: recall_at_1, then qps_kernel"
+deep10M-annb,cuvs_ivf_pq,nlist32768_m16,32768,16,0.997800,0.998300,0.998600,16384,1820.280,5493.6602,"max recall_at_10 over nprobe; ties: recall_at_1, then qps_kernel"
+deep10M-annb,faiss_ivf_pq,nlist32768_m16,32768,16,0.386900,0.860300,0.993300,1536,3935.441,2541.0112,"max recall_at_10 over nprobe; ties: recall_at_1, then qps_kernel"
+deep1M-annb,cuvs_ivf_pq,nlist2048_m16,2048,16,0.999500,0.999700,0.999700,320,53471.704,187.0148,"max recall_at_10 over nprobe; ties: recall_at_1, then qps_kernel"
+deep1M-annb,faiss_ivf_pq,nlist8192_m16,8192,16,0.417700,0.897700,0.997900,1024,10517.441,950.8016,"max recall_at_10 over nprobe; ties: recall_at_1, then qps_kernel"
+gist,cuvs_ivf_pq,nlist4096_m48,4096,48,0.959000,0.962000,0.962000,1024,4500.993,222.1732,"max recall_at_10 over nprobe; ties: recall_at_1, then qps_kernel"
+gist,faiss_ivf_pq,nlist4096_m48,4096,48,0.223000,0.599000,0.926000,128,47855.133,20.8964,"max recall_at_10 over nprobe; ties: recall_at_1, then qps_kernel"
+glove200,cuvs_ivf_pq,nlist4096_m40,4096,40,0.981000,0.981000,0.981000,1280,9707.800,1030.0995,"max recall_at_10 over nprobe; ties: recall_at_1, then qps_kernel"
+glove200,faiss_ivf_pq,nlist4096_m40,4096,40,0.509800,0.877600,0.982400,2048,1258.162,7948.1040,"max recall_at_10 over nprobe; ties: recall_at_1, then qps_kernel"
+nytimes-full,cuvs_ivf_pq,nlist2048_m32,2048,32,0.886600,0.975900,0.980600,2048,6903.582,1448.5233,"max recall_at_10 over nprobe; ties: recall_at_1, then qps_kernel"
+nytimes-full,faiss_ivf_pq,nlist2048_m32,2048,32,0.522400,0.872400,0.964000,2048,1499.577,6668.5454,"max recall_at_10 over nprobe; ties: recall_at_1, then qps_kernel"
+sift1M,cuvs_ivf_pq,nlist4096_m32,4096,32,0.993600,1.000000,1.000000,768,25270.195,395.7231,"max recall_at_10 over nprobe; ties: recall_at_1, then qps_kernel"
+sift1M,faiss_ivf_pq,nlist4096_m32,4096,32,0.641700,0.985400,1.000000,640,8649.632,1156.1185,"max recall_at_10 over nprobe; ties: recall_at_1, then qps_kernel"
+mnist8M,cuvs_ivf_pq,nlist8192_m28,8192,28,,,,,,,fixed for mnist8M
+mnist8M,faiss_ivf_pq,nlist8192_m28,8192,28,,,,,,,fixed for mnist8M

@@ -1,0 +1,1035 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 734312c..f59042f 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
+ set(CMAKE_CUDA_STANDARD 20)
+ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+ set(CMAKE_CUDA_STANDARD_REQUIRED TRUE)
++set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+ 
+ # CUDA toolkit version 12 required for C++20 support
+ find_package(CUDAToolkit 12 REQUIRED)
+@@ -66,35 +67,10 @@ message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
+ 
+ # Configure CUDA architectures to compile for
+ if (NOT DEFINED GGNN_CUDA_ARCHITECTURES)
+-  if (DEFINED ENV{TORCH_CUDA_ARCH_LIST})
+-    message(STATUS "Parsing TORCH_CUDA_ARCH_LIST: $ENV{TORCH_CUDA_ARCH_LIST}")
+-    string(REPLACE "." "" TORCH_CUDA_ARCHITECTURES $ENV{TORCH_CUDA_ARCH_LIST})
+-    string(REPLACE "  " " " TORCH_CUDA_ARCHITECTURES ${TORCH_CUDA_ARCHITECTURES})
+-    string(REPLACE " " "-real " TORCH_CUDA_ARCHITECTURES "${TORCH_CUDA_ARCHITECTURES} ")
+-    string(REPLACE "+PTX-real" " " TORCH_CUDA_ARCHITECTURES ${TORCH_CUDA_ARCHITECTURES})
+-    string(REPLACE " " ";" TORCH_CUDA_ARCHITECTURES ${TORCH_CUDA_ARCHITECTURES})
+-    set(GGNN_CUDA_ARCHITECTURES ${TORCH_CUDA_ARCHITECTURES} CACHE STRING "CUDA architecture(s) to compile for.")
+-  else()
+-    # adjust this based on your available GPUs
+-    # see https://developer.nvidia.com/cuda-gpus
+-    # 6.1 - 1080Ti
+-    # 7.0 - V100
+-    # 7.5 - 2080Ti
+-    # 8.6 - 3090
+-    # 8.9 - 4090
+-    # 9.0 - H100
+-    # the following are also allowed:
+-    # all-major
+-    # native
+-    set(GGNN_CUDA_ARCHITECTURES all-major CACHE STRING "CUDA architecture(s) to compile for.")
+-    mark_as_advanced(CMAKE_CUDA_ARCHITECTURES)
+-    # set_property(CACHE GGNN_CUDA_ARCHITECTURES PROPERTY STRINGS "all-major" "native" "61" "70" "75" "86" "89" "90")
+-  endif()
++  set(GGNN_CUDA_ARCHITECTURES 80 CACHE STRING "CUDA architecture(s) to compile for.")
+ endif()
+ 
+-set(CMAKE_CUDA_ARCHITECTURES ${GGNN_CUDA_ARCHITECTURES} CACHE STRING "CUDA architecture(s) to compile for." FORCE)
+-message(STATUS "CMAKE_CUDA_ARCHITECTURES: ${CMAKE_CUDA_ARCHITECTURES}")
+-
++set(CMAKE_CUDA_ARCHITECTURES 80)
+ 
+ # Set CUDA flags based on build type
+ set(CMAKE_CUDA_FLAGS "--expt-relaxed-constexpr")
+@@ -104,6 +80,7 @@ elseif(CMAKE_BUILD_TYPE MATCHES "RelWithDebInfo")
+   set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -lineinfo -Xptxas=-v")
+ endif()
+ 
++message(STATUS "CMAKE_CUDA_ARCHITECTURES: ${CMAKE_CUDA_ARCHITECTURES}")
+ message(STATUS "CMAKE_CUDA_FLAGS: ${CMAKE_CUDA_FLAGS}")
+ 
+ 
+@@ -227,10 +204,7 @@ endif()
+ if (NOT PY_BUILD_CMAKE_MODULE_NAME)
+   if (gflags_FOUND)
+     set(files
+-      "${CMAKE_CURRENT_SOURCE_DIR}/examples/cpp-and-cuda/ggnn_main.cpp"
+       "${CMAKE_CURRENT_SOURCE_DIR}/examples/cpp-and-cuda/ggnn_main_gpu_data.cu"
+-      "${CMAKE_CURRENT_SOURCE_DIR}/examples/cpp-and-cuda/ggnn_main_multi_gpu.cpp"
+-      "${CMAKE_CURRENT_SOURCE_DIR}/examples/cpp-and-cuda/ggnn_benchmark.cpp"
+     )
+     foreach(filename ${files})
+         get_filename_component(EXECUTABLE_NAME "${filename}" NAME_WLE)
+diff --git a/examples/cpp-and-cuda/ggnn_main_gpu_data.cu b/examples/cpp-and-cuda/ggnn_main_gpu_data.cu
+index ffcaafa..0e0fd5c 100644
+--- a/examples/cpp-and-cuda/ggnn_main_gpu_data.cu
++++ b/examples/cpp-and-cuda/ggnn_main_gpu_data.cu
+@@ -13,71 +13,261 @@ limitations under the License.
+ // converted to GGNN library by: Lukas Ruppert, Deborah Kornwolf
+ 
+ #include <ggnn/base/ggnn.cuh>
+-
+ #include <cstddef>
+ #include <cstdint>
+ #include <iostream>
+-
++#include <fstream>
++#include <string>
++#include <stdexcept>
+ #include <cuda_runtime.h>
+ #include <curand.h>
++#include <chrono>
++#include <vector>
++#include <cmath>
++#include <algorithm>
++#include <sstream>
++#include <cstring>
++
++float* read_fvecs(const std::string& filename, size_t& num_vectors, size_t& dim) {
++    std::ifstream input(filename, std::ios::binary);
++    if (!input) {
++        throw std::runtime_error("Unable to open .fvecs file");
++    }
++    int dim_int;
++    input.read(reinterpret_cast<char*>(&dim_int), sizeof(int));
++    dim = static_cast<size_t>(dim_int);
++    input.seekg(0, std::ios::end);
++    size_t filesize = input.tellg();
++    input.seekg(0, std::ios::beg);
++    size_t record_size = (dim + 1) * sizeof(float);
++    num_vectors = filesize / record_size;
++    float* data = new float[num_vectors * dim];
++    for (size_t i = 0; i < num_vectors; ++i) {
++        int d;
++        input.read(reinterpret_cast<char*>(&d), sizeof(int));
++        if (static_cast<size_t>(d) != dim) {
++            throw std::runtime_error("Inconsistent vector dimension");
++        }
++        input.read(reinterpret_cast<char*>(data + i * dim), sizeof(float) * dim);
++    }
++    return data;
++}
++
++float* read_fbin(const std::string& filename, size_t& num_vectors, size_t& dim) {
++    std::ifstream input(filename, std::ios::binary);
++    if (!input) {
++        throw std::runtime_error("Unable to open .fbin file");
++    }
++    int32_t n32 = 0, d32 = 0;
++    input.read(reinterpret_cast<char*>(&n32), sizeof(int32_t));
++    input.read(reinterpret_cast<char*>(&d32), sizeof(int32_t));
++    if (!input || n32 <= 0 || d32 <= 0) {
++        throw std::runtime_error("Invalid .fbin header");
++    }
++    num_vectors = static_cast<size_t>(n32);
++    dim = static_cast<size_t>(d32);
++    float* data = new float[num_vectors * dim];
++    input.read(reinterpret_cast<char*>(data),
++               static_cast<std::streamsize>(num_vectors * dim * sizeof(float)));
++    if (!input) {
++        delete[] data;
++        throw std::runtime_error("Failed to read .fbin payload");
++    }
++    return data;
++}
++
++float* read_base(const std::string& filename, size_t& num_vectors, size_t& dim) {
++    if (filename.size() >= 5 &&
++        filename.compare(filename.size() - 5, 5, ".fbin") == 0) {
++        return read_fbin(filename, num_vectors, dim);
++    }
++    return read_fvecs(filename, num_vectors, dim);
++}
+ 
+ using namespace ggnn;
+-int main()
++
++int main(int argc, char** argv)
+ {
+-  using GGNN = ggnn::GGNN<int32_t, float>;
+-
+-  // create data on the GPU
+-  size_t N_base {10'000};
+-  size_t N_query {10'000};
+-  uint32_t D {128};
+-
+-  float* base;
+-  float* query;
+-
+-  cudaMalloc(&base, N_base * D * sizeof(float));
+-  cudaMalloc(&query, N_query * D * sizeof(float));
+-
+-  curandGenerator_t generator;
+-  curandCreateGenerator(&generator, CURAND_RNG_PSEUDO_DEFAULT);
+-
+-  curandGenerateUniform(generator, base, N_base * D);
+-  curandGenerateUniform(generator, query, N_query * D);
+-
+-  // initialize GGNN
+-  GGNN ggnn{};
+-
+-  // Set the data on the GPU as the base dataset on which the graph should be built on.
+-  // To reference existing data, specify its pointer, the number of base vectors N_base,
+-  // the dimensionality of base vectors D and the gpu_id of the GPU containing the data.
+-  int32_t gpu_id = 0;
+-  ggnn.setBase(ggnn::Dataset<float>::referenceGPUData(base, N_base, D, gpu_id));
+-
+-  // reference the query data which already exists on the gpu
+-  ggnn::Dataset<float> d_query = ggnn::Dataset<float>::referenceGPUData(query, N_query, D, 0);
+-
+-  // build the search graph
+-  const uint32_t KBuild = 24;
+-  const float tau_build = 0.5f;
+-  ggnn.build(KBuild, tau_build);
+-
+-  // run the query and store indices & distances
+-  const int32_t KQuery = 10;
+-  const auto [indices, dists] = ggnn.query(d_query, KQuery, 0.5f);
+-
+-  // print the results for the first query
+-  std::cout << "Result for the first query verctor: \n";
+-  for (uint32_t i = 0; i < KQuery; i++) {
+-    // std::cout << "Base Idx: ";
+-    std::cout << "Distance to vector at base[";
+-    std::cout.width(5);
+-    std::cout << indices[i];
+-    std::cout << "]: " << dists[i] << "\n";
+-  }
+-
+-  // cleanup
+-  curandDestroyGenerator(generator);
+-  cudaFree(base);
+-  cudaFree(query);
+-
+-  return 0;
++    using GGNN = ggnn::GGNN<int32_t, float>;
++    if (argc < 2) {
++        std::cerr << "Usage: " << argv[0] << " <mode (build|query)> [other arguments]" << std::endl;
++        std::cerr << "Build mode: " << argv[0]
++                  << " build <base.fvecs|fbin> <graph_dir> <KBuild> <tau_build> [refine=2]"
++                  << std::endl;
++        std::cerr << "Query mode: " << argv[0]
++                  << " query <base.fvecs|fbin> <query.fvecs|fbin> <graph_dir> <KBuild> <KQuery> "
++                     "<max_iterations> <distance_measure (l2|cos)> <result_file>"
++                  << std::endl;
++        return 1;
++    }
++
++    std::string mode = argv[1];
++
++    if (mode == "build") {
++        if (argc != 6 && argc != 7) {
++            std::cerr << "Usage for build: " << argv[0]
++                      << " build <base.fvecs|fbin> <graph_dir> <KBuild> <tau_build> [refine=2]"
++                      << std::endl;
++            return 1;
++        }
++        std::string base_path = argv[2];
++        std::string graph_dir = argv[3];
++        const uint32_t KBuild = std::stoi(argv[4]);
++        const float tau_build = std::stof(argv[5]);
++        const uint32_t refine = (argc == 7) ? static_cast<uint32_t>(std::stoi(argv[6])) : 2u;
++        DistanceMeasure measure = DistanceMeasure::Euclidean;
++        size_t N_base, D;
++        std::cout << "Reading base: " << base_path << std::endl;
++        float* h_base = read_base(base_path, N_base, D);
++        std::cout << "Base: N=" << N_base << " D=" << D << std::endl;
++
++        constexpr uint32_t kShardSize = 20000000u;
++        if (N_base % kShardSize != 0) {
++            std::cerr << "ERROR: N=" << N_base << " is not divisible by shard_size=" << kShardSize
++                      << std::endl;
++            delete[] h_base;
++            return 1;
++        }
++        std::cout << "setShardSize(" << kShardSize << ") -> " << (N_base / kShardSize)
++                  << " shards" << std::endl;
++
++        float* base = nullptr;
++        const size_t nbytes = N_base * D * sizeof(float);
++        std::cout << "Allocating GPU base: " << (nbytes / (1024.0 * 1024.0 * 1024.0)) << " GiB"
++                  << std::endl;
++        cudaError_t err = cudaMalloc(&base, nbytes);
++        if (err != cudaSuccess) {
++            std::cerr << "cudaMalloc base failed: " << cudaGetErrorString(err) << std::endl;
++            delete[] h_base;
++            return 1;
++        }
++        err = cudaMemcpy(base, h_base, nbytes, cudaMemcpyHostToDevice);
++        if (err != cudaSuccess) {
++            std::cerr << "cudaMemcpy base failed: " << cudaGetErrorString(err) << std::endl;
++            cudaFree(base);
++            delete[] h_base;
++            return 1;
++        }
++
++        GGNN ggnn{};
++        int32_t gpu_id = 0;
++        ggnn.setWorkingDirectory(graph_dir);
++        ggnn.setGPUs({gpu_id});
++        ggnn.setShardSize(kShardSize);
++        ggnn.setBase(ggnn::Dataset<float>::referenceGPUData(base, N_base, D, gpu_id));
++
++        std::cout << "Building GGNN KBuild=" << KBuild << " tau=" << tau_build
++                  << " refine=" << refine << std::endl;
++        auto start = std::chrono::high_resolution_clock::now();
++        ggnn.build(KBuild, tau_build, refine, measure);
++        cudaDeviceSynchronize();
++        auto end = std::chrono::high_resolution_clock::now();
++        std::chrono::duration<double, std::milli> build_duration = end - start;
++        std::cout << "Graph built in " << build_duration.count() << " ms." << std::endl;
++        ggnn.store();
++        std::cout << "Graph built and stored successfully." << std::endl;
++        cudaFree(base);
++        delete[] h_base;
++    }
++    else if (mode == "query") {
++        if (argc != 10) {
++            std::cerr << "Usage for query: " << argv[0]
++                      << " query <base.fvecs|fbin> <query.fvecs|fbin> <graph_dir> <KBuild> <KQuery> "
++                         "<max_iterations> <distance_measure (l2|cos)> <result_file>"
++                      << std::endl;
++            return 1;
++        }
++        std::string base_path = argv[2];
++        std::string query_path = argv[3];
++        std::string graph_dir = argv[4];
++        const uint32_t KBuild = std::stoi(argv[5]);
++        const uint32_t KQuery = std::stoi(argv[6]);
++        const uint32_t max_iterations = std::stoi(argv[7]);
++        std::string dist_type = argv[8];
++        std::string result_filename = argv[9];
++        DistanceMeasure measure;
++        if (dist_type == "l2") {
++            measure = DistanceMeasure::Euclidean;
++        } else if (dist_type == "cos") {
++            measure = DistanceMeasure::Cosine;
++        } else {
++            std::cerr << "Invalid distance measure. Use 'l2' or 'cos'." << std::endl;
++            return 1;
++        }
++        size_t N_base, D;
++        float* h_base = read_base(base_path, N_base, D);
++        float* base;
++        cudaMalloc(&base, N_base * D * sizeof(float));
++
++        GGNN ggnn{};
++        int32_t gpu_id = 0;
++        constexpr uint32_t kShardSize = 20000000u;
++        if (N_base % kShardSize == 0) {
++            ggnn.setShardSize(kShardSize);
++        }
++        ggnn.setWorkingDirectory(graph_dir);
++        ggnn.setGPUs({0});
++        ggnn.setBase(ggnn::Dataset<float>::referenceGPUData(base, N_base, D, gpu_id));
++        size_t N_query;
++        float* h_query = read_base(query_path, N_query, D);
++        float* query;
++        cudaMalloc(&query, N_query * D * sizeof(float));
++        auto data_start = std::chrono::high_resolution_clock::now();
++        cudaMemcpy(base, h_base, N_base * D * sizeof(float), cudaMemcpyHostToDevice);
++        cudaMemcpy(query, h_query, N_query * D * sizeof(float), cudaMemcpyHostToDevice);
++        auto data_end = std::chrono::high_resolution_clock::now();
++        std::chrono::duration<double, std::micro> data_duration = data_end - data_start;
++        std::cout << "Data transfer to GPU completed in " << data_duration.count()/1000.0 << " ms." << std::endl;
++        ggnn::Dataset<float> d_query = ggnn::Dataset<float>::referenceGPUData(query, N_query, D, gpu_id);
++
++        printf("Loading graph...\n");
++        ggnn.load(KBuild);
++
++        unsigned long long h_calc_count = 0;
++        unsigned long long h_path_count = 0;
++        unsigned long long h_fetch_time = 0;
++        unsigned long long h_filter_time = 0;
++        unsigned long long h_calc_time = 0;
++        unsigned long long h_update_time = 0;
++
++        printf("Start query with KBuild=%u, KQuery=%u, max_iterations=%u\n",
++               KBuild, KQuery, max_iterations);
++
++        auto query_start = std::chrono::high_resolution_clock::now();
++        const auto [indices, dists] = ggnn.query(d_query, KQuery, 0.5f, h_calc_count, h_path_count, h_fetch_time, h_filter_time, h_calc_time, h_update_time, max_iterations, measure);
++        cudaDeviceSynchronize();
++        auto query_end = std::chrono::high_resolution_clock::now();
++        std::chrono::duration<double, std::micro> query_duration = query_end - query_start;
++        std::cout << "Query completed in " << query_duration.count() << " us." << std::endl;
++        std::cout << "calc count: " << h_calc_count << std::endl;
++        std::cout << "path count: " << h_path_count << std::endl;
++        unsigned long long sum = h_fetch_time + h_filter_time + h_calc_time + h_update_time;
++        std::cout<< "fetch time ratio: " << (h_fetch_time+h_filter_time)/(double)sum << std::endl;
++        std::cout<< "calc time ratio: " << h_calc_time/(double)sum << std::endl;
++        std::cout<< "update time ratio: " << h_update_time/(double)sum << std::endl;
++
++        std::ofstream result_file(result_filename);
++        if (!result_file.is_open()) {
++            std::cerr << "Failed to open output file!" << std::endl;
++            return -1;
++        }
++        for (size_t i = 0; i < N_query; ++i) {
++            for (int j = 0; j < KQuery; ++j) {
++                result_file << indices[i * KQuery + j];
++                if (j < KQuery - 1)
++                    result_file << " ";
++            }
++            result_file << "\n";
++        }
++        result_file.close();
++        cudaFree(query);
++        delete[] h_query;
++        cudaFree(base);
++        delete[] h_base;
++    }
++    else {
++        std::cerr << "Invalid mode. Use 'build' or 'query'." << std::endl;
++        return 1;
++    }
++    return 0;
+ }
+diff --git a/include/ggnn/base/ggnn.cuh b/include/ggnn/base/ggnn.cuh
+index 3b3f3a7..a48dc38 100644
+--- a/include/ggnn/base/ggnn.cuh
++++ b/include/ggnn/base/ggnn.cuh
+@@ -144,7 +144,13 @@ class GGNN {
+    * NOTE: query data type has to match base data type
+    */
+   [[nodiscard]] virtual Results query(const GenericDataset& query, const uint32_t KQuery,
+-                                      const float tau_query, const uint32_t max_iterations = 400,
++                                      const float tau_query, unsigned long long& d_calc_count,
++                                      unsigned long long& d_path_count,
++                                      unsigned long long& d_fetch_time,
++                                      unsigned long long& d_filter_time,
++                                      unsigned long long& d_calc_time,
++                                      unsigned long long& d_update_time,
++                                      const uint32_t max_iterations = 400,
+                                       const DistanceMeasure measure = DistanceMeasure::Euclidean);
+ 
+   /**
+diff --git a/include/ggnn/base/gpu_instance.cuh b/include/ggnn/base/gpu_instance.cuh
+index 1d1de72..a53b7fd 100644
+--- a/include/ggnn/base/gpu_instance.cuh
++++ b/include/ggnn/base/gpu_instance.cuh
+@@ -98,6 +98,12 @@ class GPUInstance {
+   [[nodiscard]] Results query(const Dataset<BaseT>& query, const std::filesystem::path& graph_dir,
+                               const uint32_t KQuery, const uint32_t max_iterations,
+                               const float tau_query, const DistanceMeasure measure);
++  [[nodiscard]] Results query(const Dataset<BaseT>& query, const std::filesystem::path& graph_dir,
++                              const uint32_t KQuery, const uint32_t max_iterations,
++                              const float tau_query, const DistanceMeasure measure,
++                              unsigned long long& h_calc_count, unsigned long long& h_path_count,
++                              unsigned long long& h_fetch_time, unsigned long long& h_filter_time,
++                              unsigned long long& h_calc_time, unsigned long long& h_update_time);
+ 
+   struct GPUGraphBuffer {
+     Graph graph;
+diff --git a/include/ggnn/cuda_utils/simple_knn_cache.cuh b/include/ggnn/cuda_utils/simple_knn_cache.cuh
+index 2678925..dec77ac 100644
+--- a/include/ggnn/cuda_utils/simple_knn_cache.cuh
++++ b/include/ggnn/cuda_utils/simple_knn_cache.cuh
+@@ -284,8 +284,82 @@ struct SimpleKNNCache {
+       if (dist < criteria())
+         push(other_n, dist);
+     }
++    __syncthreads();
++  }
++
++  template <bool filter_known_keys = true>
++  __device__ __forceinline__ void fetch_B(
++      std::conditional_t<filter_known_keys, KeyT, const KeyT>* s_keys, const KeyT* d_translation,
++      uint32_t len, unsigned long long* d_filter_time, unsigned long long* d_calc_time,
++      unsigned long long* d_update_time)
++  {
++    __shared__ unsigned long long s_filter_time;
++    __shared__ unsigned long long s_calc_time;
++    __shared__ unsigned long long s_update_time;
++
++    if (threadIdx.x == 0) {
++      s_filter_time = 0;
++      s_calc_time = 0;
++      s_update_time = 0;
++    }
++    __syncthreads();
++    unsigned long long start = clock64();
++    if constexpr (filter_known_keys) {
++      __syncthreads();
++      for (uint32_t i = threadIdx.x; i < CACHE_SIZE; i += BLOCK_DIM_X) {
++        const KeyT n = s_cache[i];
++        if (n == EMPTY_KEY) {
++          if (i >= SORTED_SIZE)
++            break;
++          continue;
++        }
++        for (uint32_t k = 0; k < len; ++k) {
++          if (s_keys[k] == n)
++            s_keys[k] = EMPTY_KEY;
++        }
++      }
++    }
+ 
+     __syncthreads();
++    if (threadIdx.x == 0) {
++      s_filter_time = clock64() - start;
++      atomicAdd(&d_filter_time[0], s_filter_time);
++    }
++    KeyT n_cache;
++    uint32_t mask = 0;
++
++    for (uint32_t k = 0; k < len || mask;) {
++      if (!mask) {
++        uint32_t idx = k + (threadIdx.x % 32);  // assuming block dim x is a multiple of 32
++        n_cache = idx < len ? s_keys[idx] : EMPTY_KEY;
++        mask = __ballot_sync(0xffffffff, n_cache != EMPTY_KEY);
++        k += 32;
++        continue;
++      }
++
++      const uint32_t first = __ffs(mask) - 1;
++      mask ^= 1 << first;
++      const KeyT other_n = __shfl_sync(0xffffffff, n_cache, first);
++
++      start = clock64();
++
++      const KeyT other_m = (d_translation) ? d_translation[other_n] : other_n;
++      const ValueT dist = rs_dist_calc.distance_synced(other_m);
++
++      if (threadIdx.x == 0) {
++        s_calc_time += clock64() - start;
++        atomicAdd(&d_calc_time[0], s_calc_time);
++      }
++
++      start = clock64();
++      if (dist < criteria())
++        push(other_n, dist);
++      if (threadIdx.x == 0) {
++        s_update_time += clock64() - start;
++        atomicAdd(&d_update_time[0], s_update_time);
++      }
++    }
++    __syncthreads();
+   }
+ 
+   __device__ __forceinline__ void fetch_unfiltered(const KeyT* s_keys, const KeyT* d_translation,
+diff --git a/include/ggnn/query/query_kernels.cuh b/include/ggnn/query/query_kernels.cuh
+index ca24254..4850008 100644
+--- a/include/ggnn/query/query_kernels.cuh
++++ b/include/ggnn/query/query_kernels.cuh
+@@ -50,6 +50,16 @@ class QueryKernels {
+   {
+     pimpl->query(gpu_instance, shard_id, query, KQuery, max_iters, tau_query, results);
+   }
++  virtual void query(const GPUInstance& gpu_instance, const uint32_t shard_id,
++                     const Dataset<BaseT>& query, const uint32_t KQuery, const uint32_t max_iters,
++                     const float tau_query, Results& results, unsigned long long& h_calc_count,
++                     unsigned long long& h_path_count, unsigned long long& h_fetch_time,
++                     unsigned long long& h_filter_time, unsigned long long& h_calc_time,
++                     unsigned long long& h_update_time)
++  {
++    pimpl->query(gpu_instance, shard_id, query, KQuery, max_iters, tau_query, results, h_calc_count,
++                 h_path_count, h_fetch_time, h_filter_time, h_calc_time, h_update_time);
++  }
+   virtual void bruteForceQuery(const Dataset<BaseT>& base, const Dataset<BaseT>& query,
+                                const uint32_t KQuery, Results& results, cudaStream_t stream = 0)
+   {
+diff --git a/include/ggnn/query/query_layer.cuh b/include/ggnn/query/query_layer.cuh
+index 83dbdbd..c46630f 100644
+--- a/include/ggnn/query/query_layer.cuh
++++ b/include/ggnn/query/query_layer.cuh
+@@ -83,6 +83,12 @@ struct QueryKernel {
+ 
+   const uint32_t shards_per_gpu{1};
+   const uint32_t on_gpu_shard_id{0};
++  unsigned long long* d_calc_count{nullptr};
++  unsigned long long* d_path_count{nullptr};  // [1]
++  unsigned long long* d_fetch_time{nullptr};
++  unsigned long long* d_filter_time{nullptr};
++  unsigned long long* d_calc_time{nullptr};
++  unsigned long long* d_update_time{nullptr};
+ };
+ 
+ };  // namespace ggnn
+diff --git a/src/ggnn/base/ggnn.cu b/src/ggnn/base/ggnn.cu
+index f8c2f4e..700b951 100644
+--- a/src/ggnn/base/ggnn.cu
++++ b/src/ggnn/base/ggnn.cu
+@@ -269,11 +269,15 @@ struct GGNNImpl : public GGNNImplBase<KeyT, ValueT> {
+   }
+ 
+   Results queryImpl(const Dataset<BaseT>& query, const uint32_t KQuery, const float tau_query,
++                    unsigned long long& h_calc_count, unsigned long long& h_path_count,
++                    unsigned long long& h_fetch_time, unsigned long long& h_filter_time,
++                    unsigned long long& h_calc_time, unsigned long long& h_update_time,
+                     const uint32_t max_iterations, const DistanceMeasure measure)
+   {
+     if (gpu_instances.empty())
+       throw std::runtime_error("There is no graph to query.");
+ 
++    printf("queryImpl\n");
+     GPUInstance& gpu_instance_0 = gpu_instances.at(0);
+ 
+     const uint32_t N_query = query.N;
+@@ -293,8 +297,9 @@ struct GGNNImpl : public GGNNImplBase<KeyT, ValueT> {
+       if (gpu_instances.size() > 1)
+         throw std::runtime_error(
+             "Returning query results on GPU is only possible when using a single GPU.");
+-      Results d_results =
+-          gpu_instance_0.query(query, graph_dir, KQuery, max_iterations, tau_query, measure);
++      Results d_results = gpu_instance_0.query(query, graph_dir, KQuery, max_iterations, tau_query,
++                                               measure, h_calc_count, h_path_count, h_fetch_time,
++                                               h_filter_time, h_calc_time, h_update_time);
+       return d_results;
+     }
+ 
+@@ -303,8 +308,9 @@ struct GGNNImpl : public GGNNImplBase<KeyT, ValueT> {
+ 
+     auto run_query = [&](uint32_t device_i) -> void {
+       GPUInstance& gpu_instance = gpu_instances.at(device_i);
+-      Results d_results =
+-          gpu_instance.query(query, graph_dir, KQuery, max_iterations, tau_query, measure);
++      Results d_results = gpu_instance.query(query, graph_dir, KQuery, max_iterations, tau_query,
++                                             measure, h_calc_count, h_path_count, h_fetch_time,
++                                             h_filter_time, h_calc_time, h_update_time);
+       auto& h_results = result_merger.partial_results_per_gpu.at(device_i);
+       // TODO: use a stream assigned to this GPU?
+       // cudaStream_t shard0Stream = gpu_instance_0.getGPUGraphBuffer(0).stream.get();
+@@ -503,23 +509,30 @@ void GGNN<KeyT, ValueT>::load(const uint32_t KBuild)
+ }
+ 
+ template <typename KeyT, typename ValueT>
+-Results<KeyT, ValueT> GGNN<KeyT, ValueT>::query(const GenericDataset& query, const uint32_t KQuery,
+-                                                const float tau_query,
+-                                                const uint32_t max_iterations,
+-                                                const DistanceMeasure measure)
++Results<KeyT, ValueT> GGNN<KeyT, ValueT>::query(
++    const GenericDataset& query, const uint32_t KQuery, const float tau_query,
++    unsigned long long& h_calc_count, unsigned long long& h_path_count,
++    unsigned long long& h_fetch_time, unsigned long long& h_filter_time,
++    unsigned long long& h_calc_time, unsigned long long& h_update_time,
++    const uint32_t max_iterations, const DistanceMeasure measure)
+ {
++  printf("ggnn::query\n");
+   switch (query.type) {
+     case DataType::FLOAT: {
+       GGNNImpl<KeyT, ValueT, float>* impl =
+           dynamic_cast<GGNNImpl<KeyT, ValueT, float>*>(pimpl.get());
+       CHECK_NOTNULL(impl);  // query data type does not mach base data type or base not set
+-      return impl->queryImpl(query.reference(), KQuery, tau_query, max_iterations, measure);
++      return impl->queryImpl(query.reference(), KQuery, tau_query, h_calc_count, h_path_count,
++                             h_fetch_time, h_filter_time, h_calc_time, h_update_time,
++                             max_iterations, measure);
+     }
+     case DataType::UINT8: {
+       GGNNImpl<KeyT, ValueT, uint8_t>* impl =
+           dynamic_cast<GGNNImpl<KeyT, ValueT, uint8_t>*>(pimpl.get());
+       CHECK_NOTNULL(impl);  // query data type does not mach base data type or base not set
+-      return impl->queryImpl(query.reference(), KQuery, tau_query, max_iterations, measure);
++      return impl->queryImpl(query.reference(), KQuery, tau_query, h_calc_count, h_path_count,
++                             h_fetch_time, h_filter_time, h_calc_time, h_update_time,
++                             max_iterations, measure);
+     }
+     default:
+       break;
+diff --git a/src/ggnn/base/gpu_instance.cu b/src/ggnn/base/gpu_instance.cu
+index 9069019..3b85256 100644
+--- a/src/ggnn/base/gpu_instance.cu
++++ b/src/ggnn/base/gpu_instance.cu
+@@ -119,8 +119,12 @@ void GPUInstance<KeyT, ValueT, BaseT>::CPUGraphBuffer::upload(GPUGraphBuffer& gp
+ {
+   gpu_buffer.global_shard_id = global_shard_id;
+   const cudaStream_t stream = gpu_buffer.stream.get();
++  auto start = std::chrono::high_resolution_clock::now();
+   graph.memory.copyTo(gpu_buffer.graph.memory, stream);
+   CHECK_CUDA(cudaStreamSynchronize(stream));
++  auto end = std::chrono::high_resolution_clock::now();
++  auto time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
++  printf("Upload time: %.3lf ms\n", time / 1000.0);
+ }
+ 
+ template <typename KeyT, typename ValueT, typename BaseT>
+@@ -159,6 +163,8 @@ void GPUInstance<KeyT, ValueT, BaseT>::allocateGraph(const GraphConfig& config,
+     size_t free, total;
+     CHECK_CUDA(cudaMemGetInfo(&free, &total));
+ 
++    printf("total memory: %.3lf GB\n", total / 1e9);
++    printf("free memory: %.3lf GB\n", free / 1e9);
+     if (reserve_construction_memory) {
+       using GraphBufferPartSizes = typename ggnn::GraphBuffer<KeyT, ValueT>::PartSizes;
+       const size_t construction_size = GraphBufferPartSizes{graph_config}.getBufferSize();
+@@ -169,6 +175,7 @@ void GPUInstance<KeyT, ValueT, BaseT>::allocateGraph(const GraphConfig& config,
+       free -= construction_size;
+     }
+ 
++    printf("free memory: %.3lf GB\n", free / 1e9);
+     const size_t size_per_shard = graph_config.getBaseSize(sizeof(BaseT)) + graph_size;
+ 
+     const uint32_t max_shards = static_cast<uint32_t>(free / size_per_shard);
+@@ -739,6 +746,123 @@ typename GPUInstance<KeyT, ValueT, BaseT>::Results GPUInstance<KeyT, ValueT, Bas
+   return d_results;
+ }
+ 
++template <typename KeyT, typename ValueT, typename BaseT>
++typename GPUInstance<KeyT, ValueT, BaseT>::Results GPUInstance<KeyT, ValueT, BaseT>::query(
++    const Dataset<BaseT>& query, const std::filesystem::path& graph_dir, const uint32_t KQuery,
++    const uint32_t max_iterations, const float tau_query, const DistanceMeasure measure,
++    unsigned long long& h_calc_count, unsigned long long& h_path_count,
++    unsigned long long& h_fetch_time, unsigned long long& h_filter_time,
++    unsigned long long& h_calc_time, unsigned long long& h_update_time)
++{
++  printf("GPUInstance::query() called with h_calc_count");
++  if (d_buffers.empty() || getGPUGraphBuffer(0).global_shard_id == -1U) {
++    LOG(ERROR) << "no graph available for query. did you forget to build one?";
++    return {};
++  }
++
++  const uint32_t num_previous_shards = shard_config.device_index * shard_config.num_shards;
++
++  Dataset<BaseT> d_query = query.referenceOnGPU(
++      gpu_ctx.gpu_id,
++      getStreamForPart(num_previous_shards +
++                       (process_shards_back_to_front ? shard_config.num_shards - 1 : 0)));
++
++  Results d_results = {
++      Dataset<KeyT>::emptyOnGPU(d_query.N, KQuery * shard_config.num_shards, gpu_ctx.gpu_id),
++      Dataset<ValueT>::emptyOnGPU(d_query.N, KQuery * shard_config.num_shards, gpu_ctx.gpu_id)};
++
++  QueryKernels<KeyT, ValueT, BaseT> query_kernels{measure};
++  const uint32_t N_query = d_query.N;
++  const size_t num_gpu_buffers = d_buffers.size();
++  const size_t num_cpu_buffers = h_buffers.size();
++  const size_t prefetch_amount = std::min(num_cpu_buffers, num_gpu_buffers);
++
++  gpu_ctx.activate();
++
++  cudaEvent_t start, stop;
++  CHECK_CUDA(cudaEventCreate(&start));
++  CHECK_CUDA(cudaEventCreate(&stop));
++  float milliseconds = 0;
++
++  for (uint32_t i = 0; i < num_gpu_buffers; i++) {
++    const uint32_t j = process_shards_back_to_front ? shard_config.num_shards - i - 1 : i;
++    const uint32_t global_shard_id = num_previous_shards + j;
++    loadBasePart(global_shard_id);
++    swapInPart(graph_dir, global_shard_id);
++  }
++
++  for (uint32_t i = 0; i < shard_config.num_shards; i++) {
++    const uint32_t j = process_shards_back_to_front ? shard_config.num_shards - i - 1 : i;
++    const uint32_t global_shard_id = num_previous_shards + j;
++
++    const cudaStream_t stream = getStreamForPart(global_shard_id);
++
++    {
++      const auto begin = std::chrono::high_resolution_clock::now();
++      waitForPart(global_shard_id);
++      const auto end = std::chrono::high_resolution_clock::now();
++      const auto cpu_us =
++          std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count();
++      VLOG(2) << "[GPU: " << shard_config.device_index
++              << "] shard-swap delay: " << static_cast<float>(cpu_us) * 0.001f << " ms.";
++    }
++
++    CHECK_CUDA(cudaEventRecord(start, stream));
++
++    query_kernels.query(*this, global_shard_id, d_query, KQuery, max_iterations, tau_query,
++                        d_results, h_calc_count, h_path_count, h_fetch_time, h_filter_time,
++                        h_calc_time, h_update_time);
++
++    CHECK_CUDA(cudaEventRecord(stop, stream));
++
++    if (process_shards_back_to_front) {
++      if (j >= prefetch_amount && j - prefetch_amount < shard_config.num_shards - num_gpu_buffers) {
++        loadBasePart(global_shard_id - prefetch_amount);
++        swapInPart(graph_dir, global_shard_id - prefetch_amount);
++      }
++    }
++    else if (j + prefetch_amount < shard_config.num_shards &&
++             j + prefetch_amount >= num_gpu_buffers) {
++      loadBasePart(global_shard_id + prefetch_amount);
++      swapInPart(graph_dir, global_shard_id + prefetch_amount);
++    }
++
++    CHECK_CUDA(cudaEventSynchronize(stop));
++
++    CHECK_CUDA(cudaEventElapsedTime(&milliseconds, start, stop));
++    VLOG(0) << "[GPU: " << shard_config.device_index << "] query part: " << global_shard_id
++            << " => ms: " << milliseconds << " [" << N_query << " points query -> "
++            << milliseconds * 1000.0f / static_cast<float>(N_query) << " us/point] \n";
++  }
++
++  if (shard_config.num_shards > 1) {
++    cudaStream_t lastShardStream = getStreamForPart(
++        num_previous_shards + (process_shards_back_to_front ? 0 : shard_config.num_shards - 1));
++
++    CHECK_CUDA(cudaEventRecord(start, lastShardStream));
++
++    sortQueryResults(d_results, lastShardStream);
++
++    CHECK_CUDA(cudaEventRecord(stop, lastShardStream));
++    CHECK_CUDA(cudaEventSynchronize(stop));
++
++    CHECK_CUDA(cudaEventElapsedTime(&milliseconds, start, stop));
++    VLOG(0) << "[GPU: " << shard_config.device_index
++            << "] query sort: " << " => ms: " << milliseconds << " [" << N_query
++            << " points query -> " << milliseconds * 1000.0f / static_cast<float>(N_query)
++            << " us/point] \n";
++
++    VLOG(0) << "[GPU: " << shard_config.device_index << "] query() done.";
++  }
++
++  CHECK_CUDA(cudaEventDestroy(start));
++  CHECK_CUDA(cudaEventDestroy(stop));
++
++  process_shards_back_to_front = !process_shards_back_to_front;
++
++  return d_results;
++}
++
+ template <typename KeyT, typename ValueT, typename BaseT>
+ void GPUInstance<KeyT, ValueT, BaseT>::sortQueryResults(Results& d_results, cudaStream_t stream)
+ {
+diff --git a/src/ggnn/query/query_kernels.cu b/src/ggnn/query/query_kernels.cu
+index eaaf9f7..60db663 100644
+--- a/src/ggnn/query/query_kernels.cu
++++ b/src/ggnn/query/query_kernels.cu
+@@ -185,6 +185,183 @@ class QueryKernelsImpl : public QueryKernels<KeyT, ValueT, BaseT> {
+     }
+   }
+ 
++  virtual void query(const GPUInstance& gpu_instance, const uint32_t shard_id,
++                     const Dataset<BaseT>& query, const uint32_t KQuery, const uint32_t max_iters,
++                     const float tau_query, Results& results, unsigned long long& h_calc_count,
++                     unsigned long long& h_path_count, unsigned long long& h_fetch_time,
++                     unsigned long long& h_filter_time, unsigned long long& h_calc_time,
++                     unsigned long long& h_update_time) override
++  {
++    static constexpr uint32_t CACHE_ITEMS_PER_THREAD = 16;
++    static constexpr uint32_t DIST_ITEMS_PER_THREAD = 4;
++    static constexpr uint32_t WARP_SIZE = 32;
++    static constexpr uint32_t MAX_BLOCK_DIM_X = 1024;
++
++    static constexpr uint32_t MIN_PRIOQ_SIZE = 16;
++    static constexpr uint32_t MIN_VISITED_SIZE = 32;
++    static constexpr uint32_t MIN_CACHE_SIZE = 256;
++    static constexpr uint32_t MAX_K_QUERY =
++        6000;  // making it larger would exceed the 48k shared memory limit
++    static constexpr uint32_t MAX_CACHE_SIZE =
++        8192;  // the next larger one would exceed the 48k shared memory limit
++
++    static constexpr uint32_t MAX_ITERS =
++        std::min(MAX_BLOCK_DIM_X * CACHE_ITEMS_PER_THREAD, MAX_CACHE_SIZE);
++    static constexpr uint32_t MAX_DIM = MAX_BLOCK_DIM_X * DIST_ITEMS_PER_THREAD;
++
++    CHECK_LE(KQuery, MAX_K_QUERY);
++
++    const uint32_t required_sorted_size = next_multiple<uint32_t, 32>(KQuery + 1 + MIN_PRIOQ_SIZE);
++
++    const uint32_t cache_size =
++        std::max({MIN_CACHE_SIZE, required_sorted_size + MIN_VISITED_SIZE, bit_ceil(max_iters)});
++    printf("cache_size: %d\n", cache_size);
++    const uint32_t cache_size_block_dim_x =
++        bit_ceil((cache_size + CACHE_ITEMS_PER_THREAD - 1) / CACHE_ITEMS_PER_THREAD);
++    const uint32_t dimension_block_dim_x =
++        bit_ceil((query.D + DIST_ITEMS_PER_THREAD - 1) / DIST_ITEMS_PER_THREAD);
++    const uint32_t block_dim_x =
++        std::max({WARP_SIZE, cache_size_block_dim_x, dimension_block_dim_x});
++
++    CHECK_LE(max_iters, MAX_ITERS);
++    CHECK_LE(query.D, MAX_DIM);
++    CHECK_LE(cache_size, MAX_CACHE_SIZE);
++    CHECK_LE(block_dim_x, MAX_BLOCK_DIM_X);
++
++    const uint32_t sorted_size = std::max(cache_size < 512U ? 64U : 32U, required_sorted_size);
++
++    gpu_instance.gpu_ctx.activate();
++    const uint32_t on_gpu_shard_id =
++        shard_id - gpu_instance.shard_config.num_shards * gpu_instance.shard_config.device_index;
++    const auto& gpu_buffer = gpu_instance.getGPUGraphBuffer(on_gpu_shard_id);
++    const auto& gpu_base_buffer = gpu_instance.getGPUBaseBuffer(on_gpu_shard_id);
++    const auto& graph = gpu_buffer.graph;
++    const Dataset<BaseT>& base = gpu_base_buffer.base;
++    const cudaStream_t stream = gpu_buffer.stream.get();
++
++    static constexpr bool WRITE_DISTS = true;
++    static constexpr bool DIST_STATS = false;
++
++    uint32_t* m_dist_statistics = nullptr;
++
++    unsigned long long* d_calc_count = nullptr;
++    unsigned long long* d_path_count = nullptr;
++    unsigned long long* d_fetch_time = nullptr;
++    unsigned long long* d_filter_time = nullptr;
++    unsigned long long* d_calc_time = nullptr;
++    unsigned long long* d_update_time = nullptr;
++    cudaMalloc(&d_calc_count, sizeof(unsigned long long));
++    cudaMalloc(&d_path_count, sizeof(unsigned long long));
++    cudaMalloc(&d_fetch_time, sizeof(unsigned long long));
++    cudaMalloc(&d_filter_time, sizeof(unsigned long long));
++    cudaMalloc(&d_calc_time, sizeof(unsigned long long));
++    cudaMalloc(&d_update_time, sizeof(unsigned long long));
++    cudaMemset(d_calc_count, 0, sizeof(unsigned long long));
++    cudaMemset(d_path_count, 0, sizeof(unsigned long long));
++    cudaMemset(d_fetch_time, 0, sizeof(unsigned long long));
++    cudaMemset(d_filter_time, 0, sizeof(unsigned long long));
++    cudaMemset(d_calc_time, 0, sizeof(unsigned long long));
++    cudaMemset(d_update_time, 0, sizeof(unsigned long long));
++
++    if constexpr (DIST_STATS)
++      cudaMallocAsync(&m_dist_statistics, query.N * sizeof(uint32_t), stream);
++
++    CHECK_LT(base.N, std::numeric_limits<uint32_t>::max());
++    auto run_query = [&]<uint32_t BLOCK_DIM_X>() {
++      using QueryKernel =
++          ggnn::QueryKernel<KeyT, ValueT, BaseT, BLOCK_DIM_X, WRITE_DISTS, DIST_STATS>;
++
++      QueryKernel query_kernel{
++          .D = query.D,
++          .measure = measure,
++          .KQuery = KQuery,
++          .sorted_size = sorted_size,
++          .cache_size = cache_size,
++          .tau_query = tau_query,
++          .max_iterations = max_iters,
++          .N_base = static_cast<KeyT>(base.N),
++          .KBuild = gpu_instance.graph_config.KBuild,
++          .num_starting_points = gpu_instance.graph_config.S,
++          .d_base = base.data(),
++          .d_query = query.data(),
++          .d_graph = graph.graph[0].data(),
++          .d_starting_points = graph.translation[GraphConfig::L - 1].data(),
++          .d_nn1_stats = graph.nn1_stats.data(),
++          .d_query_results = results.ids.data(),
++          .d_query_results_dists = results.dists.data(),
++          .d_dist_stats = m_dist_statistics,
++          .shards_per_gpu = gpu_instance.shard_config.num_shards,
++          .on_gpu_shard_id = on_gpu_shard_id,
++          .d_calc_count = d_calc_count,
++          .d_path_count = d_path_count,
++          .d_fetch_time = d_fetch_time,
++          .d_filter_time = d_filter_time,
++          .d_calc_time = d_calc_time,
++          .d_update_time = d_update_time,
++      };
++
++      cudaEvent_t start, stop;
++      cudaEventCreate(&start);
++      cudaEventCreate(&stop);
++
++      cudaEventRecord(start, stream);
++      query_kernel.launch(query.N, gpu_buffer.stream.get());
++      cudaEventRecord(stop, stream);
++
++      cudaEventSynchronize(stop);
++      float ms;
++      cudaEventElapsedTime(&ms, start, stop);
++      printf("GPU kernel time: %.3f ms\n", ms);
++      cudaEventDestroy(start);
++      cudaEventDestroy(stop);
++    };
++
++    if constexpr (DIST_STATS)
++      CHECK_CUDA(cudaFreeAsync(m_dist_statistics, gpu_buffer.stream.get()));
++
++    switch (block_dim_x) {
++      case 32:
++        run_query.template operator()<32>();
++        break;
++      case 64:
++        run_query.template operator()<64>();
++        break;
++      case 128:
++        run_query.template operator()<128>();
++        break;
++      case 256:
++        run_query.template operator()<256>();
++        break;
++      case 512:
++        run_query.template operator()<512>();
++        break;
++      case 1024:
++        run_query.template operator()<1024>();
++        break;
++      default:
++        LOG(DFATAL) << "The query has not been compiled for BLOCK_DIM_X == " << block_dim_x << ".";
++    }
++    cudaDeviceSynchronize();
++    CHECK_CUDA(cudaMemcpy(&h_calc_count, d_calc_count, sizeof(unsigned long long),
++                          cudaMemcpyDeviceToHost));
++    CHECK_CUDA(cudaMemcpy(&h_path_count, d_path_count, sizeof(unsigned long long),
++                          cudaMemcpyDeviceToHost));
++    CHECK_CUDA(cudaMemcpy(&h_fetch_time, d_fetch_time, sizeof(unsigned long long),
++                          cudaMemcpyDeviceToHost));
++    CHECK_CUDA(cudaMemcpy(&h_filter_time, d_filter_time, sizeof(unsigned long long),
++                          cudaMemcpyDeviceToHost));
++    CHECK_CUDA(
++        cudaMemcpy(&h_calc_time, d_calc_time, sizeof(unsigned long long), cudaMemcpyDeviceToHost));
++    CHECK_CUDA(cudaMemcpy(&h_update_time, d_update_time, sizeof(unsigned long long),
++                          cudaMemcpyDeviceToHost));
++    cudaFree(d_calc_count);
++    cudaFree(d_path_count);
++    cudaFree(d_fetch_time);
++    cudaFree(d_filter_time);
++    cudaFree(d_calc_time);
++    cudaFree(d_update_time);
++  }
++
+   virtual void bruteForceQuery(const Dataset<BaseT>& base, const Dataset<BaseT>& query,
+                                const uint32_t KQuery, Results& results,
+                                cudaStream_t stream) override
+diff --git a/src/ggnn/query/query_layer.cu b/src/ggnn/query/query_layer.cu
+index 8eb2dd8..e15df36 100644
+--- a/src/ggnn/query/query_layer.cu
++++ b/src/ggnn/query/query_layer.cu
+@@ -54,6 +54,13 @@ QueryKernel<KeyT, ValueT, BaseT, BLOCK_SIZE, WRITE_DISTS, DIST_STATS>::operator(
+   Cache cache(D, measure, KQuery, sorted_size, cache_size, d_base, d_query, n, xi);
+   cache.fetch_unfiltered(d_starting_points, nullptr, num_starting_points);
+ 
++  __shared__ unsigned long long s_fetch_time;
++
++  if (threadIdx.x == 0) {
++    s_fetch_time = 0;
++  }
++  __syncthreads();
++  unsigned long long start;
+   for (uint32_t ite = 0; ite < max_iterations; ++ite) {
+     if (measure == DistanceMeasure::Euclidean) {
+       cache.r_xi = min(xi, cache.s_dists[0] * tau_query * tau_query);
+@@ -63,17 +70,33 @@ QueryKernel<KeyT, ValueT, BaseT, BLOCK_SIZE, WRITE_DISTS, DIST_STATS>::operator(
+     }
+ 
+     const KeyT anchor = cache.pop();
++    if (threadIdx.x == 0) {
++      if (d_path_count != nullptr) {
++        atomicAdd(&d_path_count[0], 1ULL);
++      }
++    }
+     if (anchor == Cache::EMPTY_KEY)
+       break;
+ 
+     __shared__ KeyT s_knn[K_BLOCK];
+     for (uint32_t i = 0; i < KBuild; i += K_BLOCK) {
++      start = clock64();
+       if (threadIdx.x < K_BLOCK) {
+         s_knn[threadIdx.x] = (i + threadIdx.x < KBuild)
+                                  ? d_graph[static_cast<size_t>(anchor) * KBuild + i + threadIdx.x]
+                                  : Cache::EMPTY_KEY;
+       }
+-      cache.fetch(s_knn, nullptr, K_BLOCK);
++      __syncthreads();
++      if (threadIdx.x == 0) {
++        atomicAdd(&s_fetch_time, clock64() - start);
++        atomicAdd(&d_fetch_time[0], s_fetch_time);
++      }
++      cache.fetch_B(s_knn, nullptr, K_BLOCK, d_filter_time, d_calc_time, d_update_time);
++      if (d_calc_count != nullptr) {
++        if (threadIdx.x == 0) {
++          atomicAdd(&d_calc_count[0], K_BLOCK);
++        }
++      }
+     }
+ 
+   }  // end iterations

@@ -1,0 +1,11 @@
+dataset	system	it	recall_ref	qps_ref	kernel_regex	source
+gist	song	84	0.9508	12541	warp_independent_search_kernel	Figure 7 sweep (SONG: among the points plotted in Figure 7, which leave out noisy measurements)
+gist	ggnn	152	0.9513	19557	ggnn::query<	Figure 7 sweep
+gist	ganns	80	0.9518	31769	^SearchK\(	Figure 7 sweep
+gist	cagra	80	0.9531	41297	single_cta_search::search_kernel	Figure 7 sweep (itopk 96, derived from it)
+deep1M	song	112	0.9537	57793	warp_independent_search_kernel	Figure 7 sweep (SONG: among the points plotted in Figure 7, which leave out noisy measurements)
+deep1M	ggnn	76	0.9504	1243010	ggnn::query<	Figure 7 sweep
+deep1M	ganns	112	0.9526	719378	^SearchK\(	Figure 7 sweep
+deep1M	cagra	48	0.9513	1963402	single_cta_search::search_kernel	Figure 7 sweep (itopk 64, derived from it)
+gist	bang	66	0.9519	4630	compute_neighborDist_par	bang_sweep.sh on the A10, R=128 graph: first L (step 8) with Recall@10 >= 0.95; QPS is the wall-clock value BANG reports
+deep1M	bang	50	0.9601	60606	compute_neighborDist_par	bang_sweep.sh on the A10, R=32 graph: first L (step 8) with Recall@10 >= 0.95 (L=42 gives 0.9497)

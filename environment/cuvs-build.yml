@@ -1,0 +1,23 @@
+# Toolchain for building cuVS 25.02 from source (IVF-PQ, brute force, and CAGRA without reverse edges)
+name: cuvs-build
+channels: [conda-forge]
+dependencies:
+  - python=3.12
+  - cuda-version=12.9
+  - cuda-nvcc=12.9
+  - cuda-cudart-dev=12.9
+  - cuda-nvtx-dev
+  - cuda-profiler-api
+  - libcublas-dev
+  - libcurand-dev
+  - libcusolver-dev
+  - libcusparse-dev
+  - libcufile-dev
+  - cuda-nvrtc-dev
+  - libnvjitlink-dev
+  - sysroot_linux-64=2.28
+  - gcc_linux-64=14
+  - gxx_linux-64=14
+  - cmake>=3.30
+  - ninja
+  - openblas

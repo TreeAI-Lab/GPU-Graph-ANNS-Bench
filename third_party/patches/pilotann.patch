@@ -1,0 +1,577 @@
+diff --git a/extension/entry.cpp b/extension/entry.cpp
+index 139ed04..ba9e19c 100644
+--- a/extension/entry.cpp
++++ b/extension/entry.cpp
+@@ -34,7 +34,9 @@ void traverse_cuda(
+     const torch::Tensor &indptr, const torch::Tensor &indices,
+     const torch::Tensor &mapping, const torch::Tensor &storage,
+     const torch::Tensor &query, const torch::Tensor &initial_I,
+-    const torch::Tensor &initial_D, int n_neighbors
++    const torch::Tensor &initial_D, int n_neighbors,
++    torch::Tensor &path_length, torch::Tensor &calc_count,
++    torch::Tensor &fetch_time, torch::Tensor &calc_time, torch::Tensor &update_time
+ );
+ void traverse_refine(
+     torch::Tensor &output_I, torch::Tensor &output_D, torch::Tensor &buffer_I,
+diff --git a/extension/inc/common.h b/extension/inc/common.h
+index 0e26947..f6f5593 100644
+--- a/extension/inc/common.h
++++ b/extension/inc/common.h
+@@ -2,8 +2,6 @@
+ #define COMMON_HEADER_FILE_H
+ 
+ // clang-format off
+-#include <cublas.h>
+-#include <cusparse.h>
+ #include <cuda_runtime.h>
+ #include <torch/extension.h>
+ #include <c10/cuda/CUDAGuard.h>
+diff --git a/extension/pipeline_cpu.cpp b/extension/pipeline_cpu.cpp
+index afb264f..60b05bf 100644
+--- a/extension/pipeline_cpu.cpp
++++ b/extension/pipeline_cpu.cpp
+@@ -24,7 +24,9 @@ void traverse_cuda(
+     const torch::Tensor &indptr, const torch::Tensor &indices,
+     const torch::Tensor &mapping, const torch::Tensor &storage,
+     const torch::Tensor &query, const torch::Tensor &initial_I,
+-    const torch::Tensor &initial_D, int n_neighbors
++    const torch::Tensor &initial_D, int n_neighbors,
++    torch::Tensor &path_length, torch::Tensor &calc_count,
++    torch::Tensor &fetch_time, torch::Tensor &calc_time, torch::Tensor &update_time
+ );
+ // clang-format on
+ 
+@@ -79,6 +81,11 @@ std::vector<torch::Tensor> pipeline(
+     auto dev_buffer_D = std::vector<torch::Tensor>();
+     auto host_buffer_I = std::vector<torch::Tensor>();
+     auto host_buffer_D = std::vector<torch::Tensor>();
++    auto path_length = torch::zeros({1}, torch::dtype(torch::kInt32).device(torch::kCUDA));
++    auto calc_count = torch::zeros({1}, torch::dtype(torch::kInt32).device(torch::kCUDA));
++    auto fetch_time = torch::zeros({1}, torch::dtype(torch::kInt64).device(torch::kCUDA));
++    auto calc_time  = torch::zeros({1}, torch::dtype(torch::kInt64).device(torch::kCUDA));
++    auto update_time= torch::zeros({1}, torch::dtype(torch::kInt64).device(torch::kCUDA));
+     auto pinned_option = query.options().pinned_memory(true);
+     for (auto i = 0; i < N_PREFETCH; i += 1) {
+         dev_buffer_I.push_back(torch::empty(
+@@ -129,7 +136,8 @@ std::vector<torch::Tensor> pipeline(
+                 query_cuda.index({Slice(left, right)}),
+                 initial_I.index({Slice(left, right)}),
+                 initial_D.index({Slice(left, right)}),
+-                n_neighbors
++                n_neighbors, path_length, calc_count,
++                fetch_time, calc_time, update_time
+             );
+             host_buffer_I[slot].copy_(
+                 dev_buffer_I[slot].view({chunk_size, -1}), true
+@@ -139,6 +147,7 @@ std::vector<torch::Tensor> pipeline(
+             );
+         }
+     }
++    default_stream.synchronize();
+ 
+     //
+     return {topk_I, topk_D};
+diff --git a/extension/traverse_cpu.cpp b/extension/traverse_cpu.cpp
+index 82bb0cf..9e26d0b 100644
+--- a/extension/traverse_cpu.cpp
++++ b/extension/traverse_cpu.cpp
+@@ -162,6 +162,162 @@ void traverse_cpu_kernel(
+     }
+ }
+ // clang-format on
++template <int HEAP_SIZE>
++void traverse_cpu_kernel_B(
++    index_t *output_I, float *output_D, int32_t *bitmask,
++    index_t *initial_I, float *initial_D, const index_t *indptr,
++    const index_t *indices, const float *storage, const float *query,
++    int d_model, int d_principle, int n_initials, int ef_search, int k,
++    int32_t mask_value, int max_iterations = 1024,int64_t* calc_count = nullptr,
++    int64_t* path_length = nullptr,
++    double* fetch_time = nullptr,
++    double* calc_time = nullptr,
++    double* update_time = nullptr
++) {
++    using Clock = std::chrono::high_resolution_clock;
++    int64_t local_calc_count = 0;
++    int64_t local_path_length = 0;
++    double local_fetch_time = 0.0;   // microseconds
++    double local_calc_time  = 0.0;   // microseconds
++    double local_update_time = 0.0;  // microseconds
++    auto buffer_D = std::array<float, HEAP_SIZE>();
++    auto buffer_I = std::array<index_t, HEAP_SIZE>();
++    auto openlist_D = std::array<float, 2 * HEAP_SIZE>();
++    auto openlist_I = std::array<index_t, 2 * HEAP_SIZE>();
++    auto heap_update = [&](const float *Ds, const index_t *Vs, int n) {
++        for (auto i = 0; i < n; i += 1) {
++            if (Ds[i] >= -buffer_D[0]) {
++                continue;
++            }
++            heap_pushpop<float, index_t>(
++                buffer_D.data(), buffer_I.data(),
++                HEAP_SIZE, -Ds[i], Vs[i]
++            );
++            heap_replace<float, index_t>(
++                openlist_D.data(), openlist_I.data(),
++                2 * HEAP_SIZE, Ds[i], Vs[i]
++            );
++        }
++    };
++
++    if (d_principle < d_model) {
++        for (auto i = 0; i < n_initials; i += 1) {
++            auto u = initial_I[i];
++            if (u < 0) {
++                continue;
++            }
++            prefetch_l2(
++                storage + u * d_model + d_principle
++            );
++        }
++        for (auto i = 0; i < n_initials; i += 1) {
++            auto u = initial_I[i];
++            if (u < 0) {
++                continue;
++            }
++            auto residual = compute_dist_avx2(
++                query, storage, u, d_model, d_principle
++            );
++            initial_D[i] += residual;
++        }
++    }
++
++    buffer_I.fill(-1);
++    openlist_I.fill(-1);
++    buffer_D.fill(-INFINITY);
++    openlist_D.fill(INFINITY);
++    for (auto i = 0; i < n_initials; i += 1) {
++        auto u = initial_I[i];
++        if (u < 0) {
++            continue;
++        }
++        bitmask[u] = mask_value;
++        heap_replace<float, index_t>(
++            openlist_D.data(), openlist_I.data(),
++            2 * HEAP_SIZE, initial_D[i], u
++        );
++    }
++
++    max_iterations = std::min(max_iterations, 2 * ef_search);
++    for (auto step = 0; step < max_iterations; step += 1) {
++        auto u = heap_pop<float, index_t>(
++            openlist_D.data(), openlist_I.data(), 2 * HEAP_SIZE
++        );
++        if (u.value < 0 || u.key >= -buffer_D[0]) {
++            break;
++        }
++        local_path_length += 1;
++        auto left = indptr[u.value];
++        auto right = indptr[u.value + 1];
++        for (auto i = left; i < right; i += 1) {
++            if (auto v = indices[i]; v >= 0) {
++                prefetch_l2(&bitmask[v]);
++            }
++        }
++        int cursor = 0;
++        float Ds[TILE_SIZE];
++        index_t Vs[TILE_SIZE];
++        for (auto i = left; i < right; i += 1) {
++            auto v = indices[i];
++            if (v < 0) {
++                break;
++            }
++            auto visited = bitmask[v];
++            if (visited == -1 || visited == mask_value) {
++                continue;
++            }
++            bitmask[v] = mask_value;
++            Vs[cursor] = v;
++            cursor += 1;
++            prefetch_l2(storage + v * d_model);
++            if (cursor == TILE_SIZE) {
++                compute_dist_avx2c<TILE_SIZE>(
++                    Ds, query, storage, Vs, d_model
++                );
++                local_calc_count += TILE_SIZE;
++                heap_update(Ds, Vs, cursor);
++                cursor = 0;
++            }
++        }
++
++        if (cursor > 0) {
++            compute_dist_avx2r(
++                Ds, query, storage, Vs, d_model, cursor
++            );
++            local_calc_count += cursor;
++            heap_update(Ds, Vs, cursor);
++        }
++    }
++
++    for (auto i = 0; i < n_initials; i += 1) {
++        auto u = initial_I[i];
++        if (u < 0) {
++            continue;
++        }
++        auto d = initial_D[i];
++        heap_pushpop<float, index_t>(
++            buffer_D.data(), buffer_I.data(), HEAP_SIZE, -d, u
++        );
++    }
++
++    for (auto i = k; i < HEAP_SIZE; i += 1) {
++        heap_pop<float, index_t>(
++            buffer_D.data(), buffer_I.data(), HEAP_SIZE
++        );
++    }
++    for (auto i = 0; i < k; i += 1) {
++        auto output = heap_pop<float, index_t>(
++            buffer_D.data(), buffer_I.data(), HEAP_SIZE
++        );
++        output_I[k - i - 1] = output.value;
++        output_D[k - i - 1] = -output.key;
++    }
++    if (calc_count)  *calc_count  += local_calc_count;
++    if (path_length) *path_length += local_path_length;
++    if (fetch_time)  *fetch_time  += local_fetch_time;
++    if (calc_time)   *calc_time   += local_calc_time;
++    if (update_time) *update_time += local_update_time;
++}
+ 
+ // clang-format off
+ void traverse_cpu(
+@@ -293,6 +449,11 @@ void traverse_refine(
+     TORCH_CHECK(buffer_I.sizes() == buffer_D.sizes());
+     TORCH_CHECK(initial_I.sizes() == initial_D.sizes());
+ 
++    int64_t total_calc_count = 0;
++    int64_t total_path_length = 0;
++    double total_fetch_time = 0.0;
++    double total_calc_time = 0.0;
++    double total_update_time = 0.0;
+     // bitmask
+     static std::shared_ptr<BitmaskPool<int32_t>> bitmask_pool;
+     if (!bitmask_pool || bitmask_pool->n_elements() != n_storage) {
+@@ -306,6 +467,11 @@ void traverse_refine(
+         // init
+         auto bitmask = bitmask_pool->get();
+ 
++        int64_t local_calc_count = 0;
++        int64_t local_path_length = 0;
++        double local_fetch_time = 0.0;
++        double local_calc_time = 0.0;
++        double local_update_time = 0.0;
+         // advance
+         bitmask->advance();
+         CHECK_CPU(bitmask->tensor(), 1, torch::kInt32);
+@@ -314,7 +480,7 @@ void traverse_refine(
+         // dispatch
+ #define DISPATCH_KERNEL_2(HEAP_SIZE, I)                                       \
+     do {                                                                      \
+-        traverse_cpu_kernel<HEAP_SIZE>(                                       \
++        traverse_cpu_kernel_B<HEAP_SIZE>(                                       \
+             buffer_I.data_ptr<index_t>() + I * n_buffers,                     \
+             buffer_D.data_ptr<float>() + I * n_buffers, bitmask->data_ptr(),  \
+             initial_I.data_ptr<index_t>() + I * n_initials,                   \
+@@ -322,9 +488,10 @@ void traverse_refine(
+             subgraph[0].data_ptr<index_t>(), subgraph[1].data_ptr<index_t>(), \
+             storage.data_ptr<float>(), query.data_ptr<float>() + I * d_model, \
+             d_model, d_principle, n_initials, ef_search, n_buffers,           \
+-            bitmask->marker(), REFINE_STEP                                    \
++            bitmask->marker(), REFINE_STEP,&local_calc_count,&local_path_length, \
++            &local_fetch_time, &local_calc_time, &local_update_time           \
+         );                                                                    \
+-        traverse_cpu_kernel<HEAP_SIZE>(                                       \
++        traverse_cpu_kernel_B<HEAP_SIZE>(                                       \
+             output_I.data_ptr<index_t>() + I * k,                             \
+             output_D.data_ptr<float>() + I * k, bitmask->data_ptr(),          \
+             buffer_I.data_ptr<index_t>() + I * n_buffers,                     \
+@@ -332,7 +499,8 @@ void traverse_refine(
+             fullgraph[0].data_ptr<index_t>(),                                 \
+             fullgraph[1].data_ptr<index_t>(), storage.data_ptr<float>(),      \
+             query.data_ptr<float>() + I * d_model, d_model, d_model,          \
+-            n_buffers, ef_search, k, bitmask->marker()                        \
++            n_buffers, ef_search, k, bitmask->marker(),1024,                  \
++            &local_calc_count,&local_path_length,&local_fetch_time,&local_calc_time,&local_update_time \
+         );                                                                    \
+     } while (0)
+ 
+@@ -365,6 +533,16 @@ void traverse_refine(
+             TORCH_CHECK("ef_search not supported" && false);
+         }
+         bitmask_pool->put(bitmask);
++        #pragma omp atomic
++        total_calc_count += local_calc_count;
++        #pragma omp atomic
++        total_path_length += local_path_length;
++        #pragma omp atomic
++        total_fetch_time += local_fetch_time;
++        #pragma omp atomic
++        total_calc_time += local_calc_time;
++        #pragma omp atomic
++        total_update_time += local_update_time;
+     }
+ }
+ // clang-format on
+diff --git a/extension/traverse_cuda.cu b/extension/traverse_cuda.cu
+index d73c976..f0292e3 100644
+--- a/extension/traverse_cuda.cu
++++ b/extension/traverse_cuda.cu
+@@ -11,7 +11,7 @@
+ #define WARP_SIZE 32
+ #define WARP_MASK 0xffffffff
+ #define BEAM_WIDTH 4
+-#define BUFFER_SIZE 256
++#define BUFFER_SIZE 512  // BEAM_WIDTH(4) * n_neighbors; need >=512 for degree 128
+ #define BITMASK_SIZE 32768
+ 
+ // clang-format off
+@@ -48,7 +48,8 @@ __global__ void __launch_bounds__(BEAM_WIDTH *WARP_SIZE, 1)
+         index_t *output_I, scalar_t *output_D, const index_t *indptr,
+         const index_t *indices, const index_t *mapping, const scalar_t *storage,
+         const scalar_t *query, const index_t *initial_I, const scalar_t *initial_D,
+-        int n_storage, int d_model, int n_neighbors, int n_initials, int ef_search
++        int n_storage, int d_model, int n_neighbors, int n_initials, int ef_search,int *path_length, int* calc_count, int64_t *fetch_time,
++        int64_t *calc_time, int64_t *update_time
+     ) {
+     // index
+     auto block_idx = blockIdx.x;
+@@ -160,7 +161,7 @@ __global__ void __launch_bounds__(BEAM_WIDTH *WARP_SIZE, 1)
+                     continue;
+                 }
+                 auto offset = __popc(
+-                    ((0x01 << threadIdx.x) - 1) & ballot
++                    ((1u << threadIdx.x) - 1u) & ballot
+                 );
+                 if (v >= 0) {
+                     cached_neighbors[cursor + offset] = v;
+@@ -175,13 +176,26 @@ __global__ void __launch_bounds__(BEAM_WIDTH *WARP_SIZE, 1)
+         return n_workloads;
+     };
+ 
++    unsigned long long start, end;
+     // iterate
+     for (auto step = 0; step < ef_search; step += 1) {
+         // expand
++        if (threadIdx.x == 0 && threadIdx.y == 0) {
++         start = clock64();
++        }
+         auto n_workloads = fetch_neighbors();
++        if(threadIdx.x==0 && threadIdx.y == 0){
++            atomicAdd(&path_length[0], blockDim.y);
++            atomicAdd(&calc_count[0], n_workloads);
++        }
+         if (n_workloads < N_WORKERS) {
+             break;
+         }
++        __syncthreads();
++        if (threadIdx.x == 0 && threadIdx.y == 0) {
++            end = clock64();
++            atomicAdd(reinterpret_cast<unsigned long long*>(&fetch_time[0]),(end - start));
++        }
+ 
+         // compute distances
+         auto tile_idx = threadIdx.x % TEAM_SIZE;
+@@ -196,13 +210,24 @@ __global__ void __launch_bounds__(BEAM_WIDTH *WARP_SIZE, 1)
+             auto v = predicate ? cached_neighbors[worker_idx] : -1;
+ 
+             // distance
+-            auto location = predicate ? mapping[v] : -1;
++            auto location = (predicate && v >= 0) ? mapping[v] : -1;
+             predicate = (location < 0) ? false : predicate;
++            if(threadIdx.x==0 && threadIdx.y==0 && predicate){
++                start = clock64();
++            }
+             auto distance = _compute_dist_cuda<scalar_t, vector_t>(
+                 storage, cached_query, d_model, location, tile_idx, predicate
+             );
+ 
++            __syncthreads();
++            if(threadIdx.x==0 && threadIdx.y==0 && predicate){
++                end = clock64();
++                atomicAdd(reinterpret_cast<unsigned long long*>(&calc_time[0]),(end - start));
++            }
+             // heapify
++            if(threadIdx.x==0 && threadIdx.y==0 && predicate){
++                start = clock64();
++            }
+             for (auto i = 0; i < N_WORKERS; i += 1) {
+                 if (predicate && tile_idx == 0 && team_idx == i) {
+                     heap_replace<scalar_t, index_t>(
+@@ -219,6 +244,11 @@ __global__ void __launch_bounds__(BEAM_WIDTH *WARP_SIZE, 1)
+                 __syncwarp();
+             }
+ 
++            __syncthreads();
++            if(threadIdx.x==0 && threadIdx.y==0 && predicate){
++                end = clock64();
++                atomicAdd(reinterpret_cast<unsigned long long*>(&update_time[0]),(end - start));
++            }
+             // advance
+             worker_idx += BEAM_WIDTH * N_WORKERS;
+         }
+@@ -251,7 +281,9 @@ void traverse_cuda(
+     const torch::Tensor &indptr, const torch::Tensor &indices,
+     const torch::Tensor &mapping, const torch::Tensor &storage,
+     const torch::Tensor &query, const torch::Tensor &initial_I,
+-    const torch::Tensor &initial_D, int n_neighbors
++    const torch::Tensor &initial_D, int n_neighbors,
++    torch::Tensor &path_length, torch::Tensor &calc_count,
++    torch::Tensor &fetch_time, torch::Tensor &calc_time, torch::Tensor &update_time
+ ) {
+     CHECK_CUDA(indptr, 1, torch::kInt64);
+     CHECK_CUDA(indices, 1, torch::kInt64);
+@@ -262,6 +294,11 @@ void traverse_cuda(
+     CHECK_CUDA(initial_D, 2, torch::kFloat32);
+     CHECK_CUDA(output_I, 3, torch::kInt64);
+     CHECK_CUDA(output_D, 3, torch::kFloat32);
++    CHECK_CUDA(path_length, 1, torch::kInt32);
++    CHECK_CUDA(calc_count, 1, torch::kInt32);
++    CHECK_CUDA(fetch_time, 1, torch::kInt64);
++    CHECK_CUDA(calc_time, 1, torch::kInt64);
++    CHECK_CUDA(update_time, 1, torch::kInt64);
+ 
+     // sizes
+     auto d_model = query.size(-1);
+@@ -293,7 +330,11 @@ void traverse_cuda(
+                 mapping.data_ptr<index_t>(), storage.data_ptr<float>(),       \
+                 query.data_ptr<float>(), initial_I.data_ptr<index_t>(),       \
+                 initial_D.data_ptr<float>(), n_storage, d_model, n_neighbors, \
+-                n_initials, ef_search                                         \
++                n_initials, ef_search,                                        \
++                path_length.data_ptr<int>(), calc_count.data_ptr<int>(),      \
++                fetch_time.data_ptr<int64_t>(),                    \
++                calc_time.data_ptr<int64_t>(),                     \
++                update_time.data_ptr<int64_t>()                    \
+             );                                                                \
+         CUDA_CHECH(cudaGetLastError());                                       \
+     } while (0)
+diff --git a/pilot_ann/kernels/__init__.py b/pilot_ann/kernels/__init__.py
+index 35c3c37..979e462 100644
+--- a/pilot_ann/kernels/__init__.py
++++ b/pilot_ann/kernels/__init__.py
+@@ -68,10 +68,16 @@ def traverse_cuda(output_I: torch.Tensor,
+                   query: torch.Tensor,
+                   initial_I: torch.Tensor,
+                   initial_D: torch.Tensor,
+-                  n_neighbors: int):
++                  n_neighbors: int,
++                  path_length: torch.Tensor,
++                  calc_count: torch.Tensor,
++                  fetch_time: torch.Tensor,
++                  calc_time: torch.Tensor,
++                  update_time: torch.Tensor):
+     extension.traverse_cuda(
+         output_I, output_D, indptr, indices, mapping,
+-        storage, query, initial_I, initial_D, n_neighbors
++        storage, query, initial_I, initial_D, n_neighbors,
++        path_length, calc_count, fetch_time, calc_time, update_time
+     )
+ 
+ 
+diff --git a/pilot_ann/layers/staged.py b/pilot_ann/layers/staged.py
+index fe5da0a..54bce0b 100644
+--- a/pilot_ann/layers/staged.py
++++ b/pilot_ann/layers/staged.py
+@@ -127,6 +127,10 @@ class IndexStaged(nn.Module):
+         # copy
+         self.entry.to(device=device)
+         self.mapping = self.mapping.to(device=device)
++        start_event = torch.cuda.Event(enable_timing=True)
++        end_event   = torch.cuda.Event(enable_timing=True)
++
++        start_event.record()
+         self.subgraph_cuda = GraphModule(
+             indptr=self.subgraph.indptr,
+             indices=self.subgraph.indices
+@@ -137,6 +141,10 @@ class IndexStaged(nn.Module):
+         )
+         storage = storage[:, :self.d_principle]
+         self.storage_cuda = storage.to(device=device)
++        end_event.record()
++        torch.cuda.synchronize()
++        htod_time_ms = start_event.elapsed_time(end_event)
++        print(f"[STAT] Storage H2D time: {htod_time_ms:.3f} ms")
+ 
+     def train(self, x: torch.Tensor):
+         assert x.dim() == 2
+diff --git a/pilot_ann/utils/loader.py b/pilot_ann/utils/loader.py
+index 431c4c0..319897e 100644
+--- a/pilot_ann/utils/loader.py
++++ b/pilot_ann/utils/loader.py
+@@ -6,6 +6,40 @@ from pathlib import Path
+ from tqdm import tqdm
+ 
+ 
++def read_fvecs_file(fn: str):
++    with open(fn, 'rb') as f:
++        data = []
++        while True:
++            dim_bytes = f.read(4)
++            if not dim_bytes:
++                break
++            dim = int.from_bytes(dim_bytes, 'little')
++            vec = np.fromfile(f, dtype=np.float32, count=dim)
++            if vec.size != dim:
++                break
++            data.append(vec)
++    if not data:
++        return np.zeros((0, 0), dtype=np.float32)
++    return np.vstack(data)
++
++
++def read_ivecs_file(fn: str):
++    with open(fn, 'rb') as f:
++        data = []
++        while True:
++            dim_bytes = f.read(4)
++            if not dim_bytes:
++                break
++            dim = int.from_bytes(dim_bytes, 'little')
++            vec = np.fromfile(f, dtype=np.int32, count=dim)
++            if vec.size != dim:
++                break
++            data.append(vec)
++    if not data:
++        return np.zeros((0, 0), dtype=np.int32)
++    return np.vstack(data)
++
++
+ def load_fuzz(name: str):
+     n_queries = 4096
+ 
+@@ -206,7 +240,18 @@ def load_numpy(name: str):
+ 
+ class DataLoader:
+     def __init__(self, name: str):
+-        if name.startswith('fuzz'):
++        p = Path(name)
++        if p.exists() and p.is_dir():
++            base_path = p / 'base.fvecs'
++            query_path = p / 'query.fvecs'
++            gt_path = p / 'groundtruth.ivecs'
++            if not (base_path.exists() and query_path.exists() and gt_path.exists()):
++                raise FileNotFoundError(f"Missing one of base.fvecs/query.fvecs/groundtruth.ivecs in {p}")
++            storage = torch.from_numpy(read_fvecs_file(str(base_path))).contiguous()
++            query = torch.from_numpy(read_fvecs_file(str(query_path))).contiguous()
++            target = torch.from_numpy(read_ivecs_file(str(gt_path))).contiguous()
++            output = (query, storage, target)
++        elif name.startswith('fuzz'):
+             output = load_fuzz(name)
+         elif name.startswith('deep'):
+             output = load_deep(name)
+diff --git a/setup.py b/setup.py
+index 1b60161..7bd51ac 100644
+--- a/setup.py
++++ b/setup.py
+@@ -38,9 +38,10 @@ setup(
+             ],
+             extra_compile_args={
+                 'cxx': [
+-                    '-mavx2', '-mfma', '-fopenmp',
++                    '-mfma', '-fopenmp',
+                     '-ffast-math', '-funroll-loops'
+-                ]
++                ],
++                'nvcc': ['-allow-unsupported-compiler']
+             }
+         )
+     ],

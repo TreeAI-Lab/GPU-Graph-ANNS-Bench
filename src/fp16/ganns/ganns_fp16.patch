@@ -1,0 +1,56 @@
+diff -ruN a/src/device_func.h b/src/device_func.h
+--- a/src/device_func.h
++++ b/src/device_func.h
+@@ -8,6 +8,17 @@
+ #define DIM PLACE_HOLDER_DIM
+ #define WS 32
+ 
++// With GANNS_FP16 the base and query vectors read by SearchK are __half; each element is converted to float
++// when read, so distances are computed and accumulated in FP32. The graph is unchanged.
++#include <cuda_fp16.h>
++#ifdef GANNS_FP16
++typedef __half vec_t;
++#else
++typedef float vec_t;
++#endif
++__device__ __forceinline__ float to_float(float x) { return x; }
++__device__ __forceinline__ float to_float(__half x) { return __half2float(x); }
++
+ __device__ void bitonic_sort(int lane_id, int k, NBR* arr, bool asc) {
+     int step = 1;
+     int substep = 1;
+@@ -245,7 +256,8 @@
+     }
+ }
+ 
+-__device__ float compute_dist_q(int lane_id, int id, int nbr_id, float* d, float *q_vec) {
++template <typename VT>  // float (SearchK_H, FP32 build) or __half (SearchK with GANNS_FP16)
++__device__ float compute_dist_q(int lane_id, int id, int nbr_id, VT* d, VT *q_vec) {
+     float dist = 0.0f;
+ #if USE_DIST_CS_
+     float p_l2 = 0.0f;
+@@ -253,8 +265,8 @@
+ #endif
+     for (int k = 0; k + lane_id < DIM; k += 32) {
+         int dim_idx = k + lane_id;
+-        float p = q_vec[id * DIM + dim_idx];
+-        float q = d[nbr_id * DIM + dim_idx];
++        float p = to_float(q_vec[id * DIM + dim_idx]);
++        float q = to_float(d[nbr_id * DIM + dim_idx]);
+     
+ #if USE_DIST_L2_
+         float delta = (p - q) * (p - q);
+diff -ruN a/src/kernels.h b/src/kernels.h
+--- a/src/kernels.h
++++ b/src/kernels.h
+@@ -321,8 +321,8 @@
+ 
+ 
+ __global__
+-void SearchK(float* d, 
+-    float* q,
++void SearchK(vec_t* d, 
++    vec_t* q,
+     int* ann,
+     int* g,
+     int n_d,

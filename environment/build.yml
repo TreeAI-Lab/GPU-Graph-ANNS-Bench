@@ -1,0 +1,26 @@
+# Toolchain for SONG, GGNN, GANNS, DiskANN, BANG and the drivers in src/
+name: build
+channels: [conda-forge]
+dependencies:
+  - python=3.12
+  - cuda-version=12.4
+  - cuda-nvcc=12.4
+  - cuda-cudart-dev=12.4
+  - libcublas-dev
+  - libcurand-dev
+  - cuda-profiler-api
+  - cxx-compiler
+  - gcc_linux-64=12
+  - gxx_linux-64=12
+  - cmake>=3.27
+  - make
+  - ninja
+  - glog
+  - gflags
+  - libboost-devel
+  - mkl-devel
+  - libaio
+  - gperftools
+  - time          # GNU time: wall clock and peak memory of the builds
+  - numpy
+  - h5py

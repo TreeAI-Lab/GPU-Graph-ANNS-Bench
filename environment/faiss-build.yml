@@ -1,0 +1,15 @@
+# Toolchain for building Faiss with GPU support from source (IVF-PQ and HNSW programs in src/baselines)
+name: faiss-build
+channels: [conda-forge]
+dependencies:
+  - cuda-version=12.6
+  - cuda-nvcc=12.6
+  - cuda-cudart-dev=12.6
+  - libcublas-dev
+  - libcurand-dev
+  - cuda-profiler-api
+  - gcc_linux-64=11
+  - gxx_linux-64=11
+  - cmake=3.28
+  - ninja
+  - openblas

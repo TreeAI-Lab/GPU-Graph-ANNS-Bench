@@ -1,0 +1,198 @@
+diff -ruN a/include/ggnn/base/data.cuh b/include/ggnn/base/data.cuh
+--- a/include/ggnn/base/data.cuh
++++ b/include/ggnn/base/data.cuh
+@@ -20,6 +20,7 @@
+ 
+ #include <cstddef>
+ #include <cstdint>
++#include <cuda_fp16.h>
+ #include <iosfwd>
+ 
+ namespace ggnn {
+@@ -30,7 +31,8 @@
+   UINT8,
+   INT32,
+   UINT32,
+-  FLOAT
++  FLOAT,
++  FLOAT16
+ };
+ 
+ enum class DataLocation : uint16_t {
+@@ -70,6 +72,10 @@
+ template <>
+ struct DataTypeAssignment<float> {
+   static constexpr DataType value{DataType::FLOAT};
++};
++template <>
++struct DataTypeAssignment<__half> {
++  static constexpr DataType value{DataType::FLOAT16};
+ };
+ 
+ DataLocation disown(DataLocation location);
+diff -ruN a/include/ggnn/base/lib.h b/include/ggnn/base/lib.h
+--- a/include/ggnn/base/lib.h
++++ b/include/ggnn/base/lib.h
+@@ -23,9 +23,12 @@
+ #define GGNN_VALUES(F, ...) \
+   F(__VA_OPT__(__VA_ARGS__, ) float);
+ 
++#include <cuda_fp16.h>
++
+ #define GGNN_BASES(F, ...)              \
+   F(__VA_OPT__(__VA_ARGS__, ) uint8_t); \
+-  F(__VA_OPT__(__VA_ARGS__, ) float);
++  F(__VA_OPT__(__VA_ARGS__, ) float);   \
++  F(__VA_OPT__(__VA_ARGS__, ) __half);
+ 
+ #define GGNN_KEYS(F, ...) \
+   F(__VA_OPT__(__VA_ARGS__, ) int32_t);
+diff -ruN a/include/ggnn/cuda_utils/distance.cuh b/include/ggnn/cuda_utils/distance.cuh
+--- a/include/ggnn/cuda_utils/distance.cuh
++++ b/include/ggnn/cuda_utils/distance.cuh
+@@ -106,7 +106,7 @@
+     ValueT query_norm = 0.0f;
+     for (uint32_t item = 0; item < DIST_ITEMS_PER_THREAD; ++item) {
+       const uint32_t read_dim = item * BLOCK_DIM_X + threadIdx.x;
+-      r_query[item] = (read_dim < D) ? d_query[read_dim] : 0;
++      r_query[item] = (read_dim < D) ? d_query[read_dim] : BaseT(0);
+       if (measure == DistanceMeasure::Cosine)
+         query_norm += static_cast<ValueT>(r_query[item]) * static_cast<ValueT>(r_query[item]);
+     }
+@@ -122,7 +122,7 @@
+ 
+     for (uint32_t item = 0; item < DIST_ITEMS_PER_THREAD; ++item) {
+       const uint32_t read_dim = item * BLOCK_DIM_X + threadIdx.x;
+-      r_other[item] = (read_dim < D) ? d_base[static_cast<AddrT>(other_id) * D + read_dim] : 0;
++      r_other[item] = (read_dim < D) ? d_base[static_cast<AddrT>(other_id) * D + read_dim] : BaseT(0);
+     }
+     ValueT dist{0.0f};
+     if (measure == DistanceMeasure::Euclidean) {
+diff -ruN a/include/ggnn/cuda_utils/simple_knn_sym_cache.cuh b/include/ggnn/cuda_utils/simple_knn_sym_cache.cuh
+--- a/include/ggnn/cuda_utils/simple_knn_sym_cache.cuh
++++ b/include/ggnn/cuda_utils/simple_knn_sym_cache.cuh
+@@ -145,7 +145,7 @@
+     ValueT query_norm = 0.0f;
+     for (uint32_t item = 0; item < DIST_ITEMS_PER_THREAD; ++item) {
+       const uint32_t read_dim = item * BLOCK_DIM_X + threadIdx.x;
+-      r_query[item] = (read_dim < D) ? d_query[read_dim] : 0;
++      r_query[item] = (read_dim < D) ? d_query[read_dim] : BaseT(0);
+       if (measure == DistanceMeasure::Cosine)
+         query_norm += static_cast<ValueT>(r_query[item]) * static_cast<ValueT>(r_query[item]);
+     }
+@@ -162,15 +162,16 @@
+     DistQueryAndHalf norms{0.0f, 0.0f};
+     for (uint32_t item = 0; item < DIST_ITEMS_PER_THREAD; ++item) {
+       const uint32_t read_dim = item * BLOCK_DIM_X + threadIdx.x;
+-      r_half[item] = (read_dim < D) ? d_base[static_cast<AddrT>(other_m) * D + read_dim] : 0;
++      r_half[item] = (read_dim < D) ? static_cast<ValueT>(d_base[static_cast<AddrT>(other_m) * D + read_dim])
++                                    : ValueT(0);
+     }
+     for (uint32_t item = 0; item < DIST_ITEMS_PER_THREAD; ++item) {
+       const uint32_t read_dim = item * BLOCK_DIM_X + threadIdx.x;
+       if (read_dim < D) {
+         r_half[item] = static_cast<ValueT>(r_query[item]) +
+-                       (0.5f - EPS) * (static_cast<ValueT>(r_half[item]) - r_query[item]);
++                       (0.5f - EPS) * (static_cast<ValueT>(r_half[item]) - static_cast<ValueT>(r_query[item]));
+         if (measure == DistanceMeasure::Cosine) {
+-          norms.dist_query += static_cast<ValueT>(r_query[item]) * r_query[item];
++          norms.dist_query += static_cast<ValueT>(r_query[item]) * static_cast<ValueT>(r_query[item]);
+           norms.dist_half += r_half[item] * r_half[item];
+         }
+       }
+@@ -217,7 +218,7 @@
+ 
+     for (uint32_t item = 0; item < DIST_ITEMS_PER_THREAD; ++item) {
+       const uint32_t read_dim = item * BLOCK_DIM_X + threadIdx.x;
+-      r_other[item] = (read_dim < D) ? d_base[static_cast<AddrT>(other_id) * D + read_dim] : 0;
++      r_other[item] = (read_dim < D) ? d_base[static_cast<AddrT>(other_id) * D + read_dim] : BaseT(0);
+     }
+ 
+     DistQueryAndHalf dist{0.f, 0.f};
+diff -ruN a/src/ggnn/base/data.cu b/src/ggnn/base/data.cu
+--- a/src/ggnn/base/data.cu
++++ b/src/ggnn/base/data.cu
+@@ -57,6 +57,8 @@
+     case DataType::BYTE:
+     case DataType::UINT8:
+       return 1;
++    case DataType::FLOAT16:
++      return 2;
+     case DataType::INT32:
+     case DataType::UINT32:
+     case DataType::FLOAT:
+@@ -174,6 +176,9 @@
+       break;
+     case DataType::FLOAT:
+       stream << "float";
++      break;
++    case DataType::FLOAT16:
++      stream << "float16";
+       break;
+   }
+   return stream;
+diff -ruN a/src/ggnn/base/dataset.cu b/src/ggnn/base/dataset.cu
+--- a/src/ggnn/base/dataset.cu
++++ b/src/ggnn/base/dataset.cu
+@@ -338,5 +338,6 @@
+ template struct Dataset<int32_t>;
+ template struct Dataset<uint32_t>;
+ template struct Dataset<float>;
++template struct Dataset<__half>;
+ 
+ };  // namespace ggnn
+diff -ruN a/src/ggnn/base/ggnn.cu b/src/ggnn/base/ggnn.cu
+--- a/src/ggnn/base/ggnn.cu
++++ b/src/ggnn/base/ggnn.cu
+@@ -470,6 +470,8 @@
+       dynamic_cast<GGNNImpl<KeyT, ValueT, uint8_t>*>(pimpl.get());
+   GGNNImpl<KeyT, ValueT, float>* impl_float =
+       dynamic_cast<GGNNImpl<KeyT, ValueT, float>*>(pimpl.get());
++  GGNNImpl<KeyT, ValueT, __half>* impl_half =
++      dynamic_cast<GGNNImpl<KeyT, ValueT, __half>*>(pimpl.get());
+   GGNNImplBase<KeyT, ValueT>* impl_base = dynamic_cast<GGNNImplBase<KeyT, ValueT>*>(pimpl.get());
+   CHECK_NOTNULL(impl_base);
+ 
+@@ -492,6 +494,16 @@
+       }
+       impl_uint8_t->setBaseImpl(std::move(base));
+       return;
++    case DataType::FLOAT16:
++      CHECK_EQ(impl_float, nullptr) << "base has already been set with a different data type (float)";
++      CHECK_EQ(impl_uint8_t, nullptr)
++          << "base has already been set with a different data type (uint8_t)";
++      if (!impl_half) {
++        impl_half = new GGNNImpl<KeyT, ValueT, __half>{*static_cast<GGNNConfig*>(impl_base)};
++        pimpl.reset(impl_half);
++      }
++      impl_half->setBaseImpl(std::move(base));
++      return;
+     default:
+       break;
+   }
+@@ -543,6 +555,12 @@
+       CHECK_NOTNULL(impl);  // query data type does not mach base data type or base not set
+       return impl->queryImpl(query.reference(), KQuery, tau_query, max_iterations, measure);
+     }
++    case DataType::FLOAT16: {
++      GGNNImpl<KeyT, ValueT, __half>* impl =
++          dynamic_cast<GGNNImpl<KeyT, ValueT, __half>*>(pimpl.get());
++      CHECK_NOTNULL(impl);  // query data type does not mach base data type or base not set
++      return impl->queryImpl(query.reference(), KQuery, tau_query, max_iterations, measure);
++    }
+     default:
+       break;
+   }
+@@ -563,6 +581,12 @@
+     case DataType::UINT8: {
+       GGNNImpl<KeyT, ValueT, uint8_t>* impl =
+           dynamic_cast<GGNNImpl<KeyT, ValueT, uint8_t>*>(pimpl.get());
++      CHECK_NOTNULL(impl);  // query data type does not mach base data type or base not set
++      return impl->bfQueryImpl(query.reference(), KGT, measure);
++    }
++    case DataType::FLOAT16: {
++      GGNNImpl<KeyT, ValueT, __half>* impl =
++          dynamic_cast<GGNNImpl<KeyT, ValueT, __half>*>(pimpl.get());
+       CHECK_NOTNULL(impl);  // query data type does not mach base data type or base not set
+       return impl->bfQueryImpl(query.reference(), KGT, measure);
+     }

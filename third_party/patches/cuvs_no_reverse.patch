@@ -1,0 +1,82 @@
+diff --git a/cpp/src/neighbors/detail/cagra/graph_core.cuh b/cpp/src/neighbors/detail/cagra/graph_core.cuh
+index 4adaa7a..33cd8fe 100644
+--- a/cpp/src/neighbors/detail/cagra/graph_core.cuh
++++ b/cpp/src/neighbors/detail/cagra/graph_core.cuh
+@@ -17,6 +17,9 @@
+ 
+ #include "utils.hpp"
+ 
++#include <cstdlib>
++#include <cstring>
++
+ #include <raft/core/device_mdspan.hpp>
+ #include <raft/core/host_device_accessor.hpp>
+ #include <raft/core/mdspan.hpp>
+@@ -1266,10 +1269,22 @@ void optimize(
+       (double)num_full / graph_size * 100);
+   }
+ 
++  // Set CUVS_CAGRA_NO_REVERSE=1 to skip building and merging the reverse graph.
++  // Pruning (and the MST step when guarantee_connectivity is set) still runs, so the
++  // output graph keeps only the pruned edges.
++  const bool skip_reverse = []() {
++    const char* e = std::getenv("CUVS_CAGRA_NO_REVERSE");
++    return e != nullptr && e[0] != '\0' && std::strcmp(e, "0") != 0;
++  }();
++  if (skip_reverse) {
++    RAFT_LOG_INFO(
++      "CUVS_CAGRA_NO_REVERSE set: skipping reverse-graph make/merge (keeping pruned/MST edges).");
++  }
++
+   auto rev_graph       = raft::make_host_matrix<IdxT, int64_t>(graph_size, output_graph_degree);
+   auto rev_graph_count = raft::make_host_vector<uint32_t, int64_t>(graph_size);
+ 
+-  {
++  if (!skip_reverse) {
+     //
+     // Make reverse graph
+     //
+@@ -1332,6 +1347,11 @@ void optimize(
+ 
+     const double time_make_end = cur_time();
+     RAFT_LOG_DEBUG("# Making reverse graph time: %.1lf sec", time_make_end - time_make_start);
++  } else {
++#pragma omp parallel for
++    for (uint64_t i = 0; i < graph_size; i++) {
++      rev_graph_count.data_handle()[i] = 0;
++    }
+   }
+ 
+   {
+@@ -1387,18 +1407,20 @@ void optimize(
+       if (num_protected_edges == output_graph_degree) continue;
+ 
+       // Replace some edges of the output graph with edges of the reverse graph.
+-      auto kr = std::min<uint32_t>(rev_graph_count.data_handle()[i], output_graph_degree);
+-      while (kr) {
+-        kr -= 1;
+-        if (my_rev_graph[kr] < graph_size) {
+-          uint64_t pos = pos_in_array<IdxT>(my_rev_graph[kr], my_out_graph, output_graph_degree);
+-          if (pos < num_protected_edges) { continue; }
+-          uint64_t num_shift = pos - num_protected_edges;
+-          if (pos >= output_graph_degree) {
+-            num_shift = output_graph_degree - num_protected_edges - 1;
++      if (!skip_reverse) {
++        auto kr = std::min<uint32_t>(rev_graph_count.data_handle()[i], output_graph_degree);
++        while (kr) {
++          kr -= 1;
++          if (my_rev_graph[kr] < graph_size) {
++            uint64_t pos = pos_in_array<IdxT>(my_rev_graph[kr], my_out_graph, output_graph_degree);
++            if (pos < num_protected_edges) { continue; }
++            uint64_t num_shift = pos - num_protected_edges;
++            if (pos >= output_graph_degree) {
++              num_shift = output_graph_degree - num_protected_edges - 1;
++            }
++            shift_array<IdxT>(my_out_graph + num_protected_edges, num_shift);
++            my_out_graph[num_protected_edges] = my_rev_graph[kr];
+           }
+-          shift_array<IdxT>(my_out_graph + num_protected_edges, num_shift);
+-          my_out_graph[num_protected_edges] = my_rev_graph[kr];
+         }
+       }
+ 

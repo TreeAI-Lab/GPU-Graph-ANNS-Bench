@@ -1,0 +1,216 @@
+dataset	system	build_args
+sift1M	cagra	GD=12 IGD=24 NITER=20
+sift1M	cagra	GD=16 IGD=32 NITER=20
+sift1M	cagra	GD=24 IGD=48 NITER=20
+sift1M	cagra	GD=32 IGD=64 NITER=20
+sift1M	cagra	GD=48 IGD=96 NITER=20
+sift1M	cagra	GD=64 IGD=128 NITER=20
+sift1M	cagra	GD=8 IGD=16 NITER=10
+sift1M	cagra	GD=8 IGD=16 NITER=20
+sift1M	cagra	GD=8 IGD=16 NITER=5
+sift1M	ganns	K=16 M=64
+sift1M	ganns	K=32 M=128
+sift1M	ganns	K=32 M=64
+sift1M	ganns	K=64 M=256
+sift1M	ggnn	K=12 TAU=0.5 REFINE=2
+sift1M	ggnn	K=14 TAU=0.5 REFINE=2
+sift1M	ggnn	K=16 TAU=0.1 REFINE=2
+sift1M	ggnn	K=16 TAU=0.3 REFINE=2
+sift1M	ggnn	K=16 TAU=0.5 REFINE=0
+sift1M	ggnn	K=16 TAU=0.5 REFINE=1
+sift1M	ggnn	K=16 TAU=0.5 REFINE=2
+sift1M	ggnn	K=20 TAU=0.5 REFINE=2
+sift1M	ggnn	K=24 TAU=0.5 REFINE=2
+sift1M	hnsw	M=10 EFC=20
+sift1M	hnsw	M=10 EFC=30
+sift1M	hnsw	M=10 EFC=35
+sift1M	hnsw	M=10 EFC=40
+sift1M	hnsw	M=12 EFC=40
+sift1M	hnsw	M=16 EFC=40
+sift1M	hnsw	M=24 EFC=40
+sift1M	hnsw	M=32 EFC=40
+sift1M	hnsw	M=64 EFC=200
+sift1M	hnsw	M=8 EFC=40
+sift1M	pilotann	TYPE=nsg NN=10 EFC=20
+sift1M	pilotann	TYPE=nsg NN=10 EFC=40
+sift1M	pilotann	TYPE=nsg NN=10 EFC=60
+sift1M	pilotann	TYPE=nsg NN=10 EFC=80
+sift1M	pilotann	TYPE=nsg NN=12 EFC=80
+sift1M	pilotann	TYPE=nsg NN=16 EFC=80
+sift1M	pilotann	TYPE=nsg NN=24 EFC=80
+sift1M	pilotann	TYPE=nsg NN=32 EFC=80
+sift1M	pilotann	TYPE=nsg NN=8 EFC=80
+sift1M	song	SD=15 SHIFT=5 BUDGET=100
+sift1M	song	SD=15 SHIFT=5 BUDGET=150
+sift1M	song	SD=15 SHIFT=5 BUDGET=75
+sift1M	song	SD=15 SHIFT=5 BUDGET=87
+sift1M	song	SD=31 SHIFT=6 BUDGET=310
+sift1M	song	SD=7 SHIFT=4 BUDGET=70
+sift1M	vamana	R=10 L=100 ALPHA=1.2
+sift1M	vamana	R=10 L=50 ALPHA=1.2
+sift1M	vamana	R=10 L=75 ALPHA=1.2
+sift1M	vamana	R=12 L=100 ALPHA=1.2
+sift1M	vamana	R=12 L=50 ALPHA=1.2
+sift1M	vamana	R=12 L=75 ALPHA=1.2
+sift1M	vamana	R=16 L=100 ALPHA=1.2
+sift1M	vamana	R=24 L=100 ALPHA=1.2
+sift1M	vamana	R=32 L=100 ALPHA=1.2
+sift1M	vamana	R=48 L=100 ALPHA=1.2
+sift1M	vamana	R=64 L=100 ALPHA=1.2
+sift1M	vamana	R=8 L=100 ALPHA=1.2
+nytimes	cagra	GD=10 IGD=20 NITER=5
+nytimes	cagra	GD=11 IGD=22 NITER=5
+nytimes	cagra	GD=12 IGD=24 NITER=10
+nytimes	cagra	GD=12 IGD=24 NITER=20
+nytimes	cagra	GD=12 IGD=24 NITER=5
+nytimes	cagra	GD=16 IGD=32 NITER=20
+nytimes	cagra	GD=24 IGD=48 NITER=20
+nytimes	cagra	GD=32 IGD=64 NITER=20
+nytimes	cagra	GD=48 IGD=96 NITER=20
+nytimes	cagra	GD=64 IGD=128 NITER=20
+nytimes	cagra	GD=8 IGD=16 NITER=20
+nytimes	cagra	GD=9 IGD=18 NITER=5
+nytimes	ganns	K=16 M=64
+nytimes	ganns	K=32 M=128
+nytimes	ganns	K=64 M=128
+nytimes	ganns	K=64 M=256
+nytimes	ggnn	K=24 TAU=0.5 REFINE=2
+nytimes	ggnn	K=26 TAU=0.5 REFINE=2
+nytimes	ggnn	K=28 TAU=0.3 REFINE=2
+nytimes	ggnn	K=28 TAU=0.5 REFINE=0
+nytimes	ggnn	K=28 TAU=0.5 REFINE=1
+nytimes	ggnn	K=28 TAU=0.5 REFINE=2
+nytimes	ggnn	K=32 TAU=0.5 REFINE=2
+nytimes	ggnn	K=40 TAU=0.5 REFINE=2
+nytimes	ggnn	K=48 TAU=0.5 REFINE=2
+nytimes	ggnn	K=64 TAU=0.5 REFINE=2
+nytimes	hnsw	M=10 EFC=200
+nytimes	hnsw	M=12 EFC=150
+nytimes	hnsw	M=12 EFC=200
+nytimes	hnsw	M=16 EFC=100
+nytimes	hnsw	M=16 EFC=150
+nytimes	hnsw	M=16 EFC=200
+nytimes	hnsw	M=24 EFC=200
+nytimes	hnsw	M=32 EFC=200
+nytimes	hnsw	M=32 EFC=40
+nytimes	hnsw	M=40 EFC=40
+nytimes	hnsw	M=48 EFC=200
+nytimes	hnsw	M=48 EFC=40
+nytimes	hnsw	M=64 EFC=200
+nytimes	hnsw	M=64 EFC=40
+nytimes	hnsw	M=8 EFC=200
+nytimes	pilotann	TYPE=nsg NN=24 EFC=80
+nytimes	pilotann	TYPE=nsg NN=28 EFC=80
+nytimes	pilotann	TYPE=nsg NN=32 EFC=40
+nytimes	pilotann	TYPE=nsg NN=32 EFC=60
+nytimes	pilotann	TYPE=nsg NN=32 EFC=80
+nytimes	pilotann	TYPE=nsg NN=48 EFC=80
+nytimes	song	SD=15 SHIFT=5 BUDGET=150
+nytimes	song	SD=31 SHIFT=6 BUDGET=155
+nytimes	song	SD=31 SHIFT=6 BUDGET=177
+nytimes	song	SD=31 SHIFT=6 BUDGET=200
+nytimes	song	SD=31 SHIFT=6 BUDGET=310
+nytimes	song	SD=63 SHIFT=7 BUDGET=630
+nytimes	vamana	R=16 L=100 ALPHA=1.2
+nytimes	vamana	R=24 L=100 ALPHA=1.2
+nytimes	vamana	R=32 L=100 ALPHA=1.2
+nytimes	vamana	R=36 L=100 ALPHA=1.2
+nytimes	vamana	R=36 L=75 ALPHA=1.2
+nytimes	vamana	R=40 L=100 ALPHA=1.2
+nytimes	vamana	R=40 L=50 ALPHA=1.2
+nytimes	vamana	R=40 L=75 ALPHA=1.2
+nytimes	vamana	R=48 L=100 ALPHA=1.2
+nytimes	vamana	R=64 L=100 ALPHA=1.2
+deep1M	cagra	GD=10 IGD=20 NITER=20
+deep1M	cagra	GD=12 IGD=24 NITER=10
+deep1M	cagra	GD=12 IGD=24 NITER=20
+deep1M	cagra	GD=12 IGD=24 NITER=5
+deep1M	cagra	GD=16 IGD=32 NITER=20
+deep1M	cagra	GD=64 IGD=128 NITER=20
+deep1M	cagra	GD=8 IGD=16 NITER=20
+deep1M	cagra	GD=9 IGD=18 NITER=10
+deep1M	cagra	GD=9 IGD=18 NITER=20
+deep1M	cagra	GD=9 IGD=18 NITER=5
+deep1M	ganns	K=16 M=64
+deep1M	ganns	K=8 M=32
+deep1M	ggnn	K=14 TAU=0.5 REFINE=2
+deep1M	ggnn	K=16 TAU=0.3 REFINE=2
+deep1M	ggnn	K=16 TAU=0.5 REFINE=1
+deep1M	ggnn	K=16 TAU=0.5 REFINE=2
+deep1M	ggnn	K=20 TAU=0.5 REFINE=2
+deep1M	ggnn	K=24 TAU=0.5 REFINE=2
+deep1M	hnsw	M=10 EFC=40
+deep1M	hnsw	M=11 EFC=40
+deep1M	hnsw	M=12 EFC=30
+deep1M	hnsw	M=12 EFC=35
+deep1M	hnsw	M=12 EFC=40
+deep1M	hnsw	M=16 EFC=40
+deep1M	hnsw	M=32 EFC=40
+deep1M	pilotann	TYPE=nsg NN=10 EFC=80
+deep1M	pilotann	TYPE=nsg NN=11 EFC=80
+deep1M	pilotann	TYPE=nsg NN=12 EFC=20
+deep1M	pilotann	TYPE=nsg NN=12 EFC=40
+deep1M	pilotann	TYPE=nsg NN=12 EFC=80
+deep1M	pilotann	TYPE=nsg NN=16 EFC=80
+deep1M	pilotann	TYPE=nsg NN=32 EFC=80
+deep1M	song	SD=15 SHIFT=5 BUDGET=100
+deep1M	song	SD=15 SHIFT=5 BUDGET=150
+deep1M	song	SD=15 SHIFT=5 BUDGET=75
+deep1M	song	SD=15 SHIFT=5 BUDGET=87
+deep1M	song	SD=7 SHIFT=4 BUDGET=70
+deep1M	vamana	R=10 L=100 ALPHA=1.2
+deep1M	vamana	R=11 L=100 ALPHA=1.2
+deep1M	vamana	R=12 L=100 ALPHA=1.2
+deep1M	vamana	R=12 L=50 ALPHA=1.2
+deep1M	vamana	R=12 L=75 ALPHA=1.2
+deep1M	vamana	R=16 L=100 ALPHA=1.2
+deep1M	vamana	R=64 L=100 ALPHA=1.2
+glove200	cagra	GD=12 IGD=24 NITER=20
+glove200	cagra	GD=16 IGD=32 NITER=10
+glove200	cagra	GD=16 IGD=32 NITER=15
+glove200	cagra	GD=16 IGD=32 NITER=20
+glove200	cagra	GD=16 IGD=32 NITER=5
+glove200	cagra	GD=24 IGD=48 NITER=20
+glove200	cagra	GD=32 IGD=64 NITER=20
+glove200	cagra	GD=48 IGD=96 NITER=20
+glove200	cagra	GD=64 IGD=128 NITER=20
+glove200	ganns	K=16 M=64
+glove200	ganns	K=32 M=128
+glove200	ganns	K=64 M=128
+glove200	ganns	K=64 M=256
+glove200	ggnn	K=24 TAU=0.5 REFINE=2
+glove200	ggnn	K=32 TAU=0.5 REFINE=2
+glove200	ggnn	K=40 TAU=0.5 REFINE=2
+glove200	ggnn	K=44 TAU=0.5 REFINE=2
+glove200	ggnn	K=46 TAU=0.5 REFINE=2
+glove200	ggnn	K=48 TAU=0.5 REFINE=1
+glove200	ggnn	K=48 TAU=0.5 REFINE=2
+glove200	ggnn	K=64 TAU=0.5 REFINE=2
+glove200	hnsw	M=14 EFC=200
+glove200	hnsw	M=16 EFC=180
+glove200	hnsw	M=16 EFC=200
+glove200	hnsw	M=24 EFC=200
+glove200	hnsw	M=32 EFC=200
+glove200	hnsw	M=32 EFC=40
+glove200	hnsw	M=48 EFC=200
+glove200	hnsw	M=64 EFC=200
+glove200	pilotann	TYPE=nsg NN=32 EFC=80
+glove200	pilotann	TYPE=nsg NN=48 EFC=160
+glove200	pilotann	TYPE=nsg NN=48 EFC=320
+glove200	pilotann	TYPE=nsg NN=48 EFC=80
+glove200	pilotann	TYPE=nsg NN=64 EFC=160
+glove200	pilotann	TYPE=nsg NN=64 EFC=320
+glove200	pilotann	TYPE=nsg NN=64 EFC=80
+glove200	song	SD=15 SHIFT=5 BUDGET=150
+glove200	song	SD=31 SHIFT=6 BUDGET=200
+glove200	song	SD=31 SHIFT=6 BUDGET=250
+glove200	song	SD=31 SHIFT=6 BUDGET=310
+glove200	vamana	R=24 L=100 ALPHA=1.2
+glove200	vamana	R=32 L=100 ALPHA=1.2
+glove200	vamana	R=34 L=100 ALPHA=1.2
+glove200	vamana	R=36 L=100 ALPHA=1.2
+glove200	vamana	R=36 L=75 ALPHA=1.2
+glove200	vamana	R=40 L=100 ALPHA=1.2
+glove200	vamana	R=48 L=100 ALPHA=1.2
+glove200	vamana	R=48 L=75 ALPHA=1.2
+glove200	vamana	R=64 L=100 ALPHA=1.2
