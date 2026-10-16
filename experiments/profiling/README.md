@@ -1,7 +1,7 @@
 # Search kernel profiling and FP16 vectors (Tables 9 and 10, Figure 14)
 
-Table 9 reports Nsight Compute metrics of the main search kernel of SONG, GGNN, GANNS, CAGRA and BANG on DEEP1M and
-GIST at 95% Recall@10: SM and GPU DRAM throughput, occupancy, active threads per warp, L2 hit rate, the share of
+Table 9 reports Nsight Compute metrics of the main search kernel of SONG, GGNN, GANNS, CAGRA, BANG and PilotANN on
+DEEP1M and GIST at 95% Recall@10: SM and GPU DRAM throughput, occupancy, active threads per warp, L2 hit rate, the share of
 the long-scoreboard stall, and the GPU DRAM bytes read per query. Table 10 and Figure 14 compare FP32 and FP16
 vectors for SONG, GGNN, GANNS and CAGRA: Recall@10, QPS and the same hardware metrics at the operating point
 (Table 10), and full QPS-recall curves (Figure 14). The FP16 programs store base and query vectors as half and
@@ -39,9 +39,15 @@ Software on the A10: driver 550.144.03, CUDA 12.4 (nvcc 12.4.131), Nsight Comput
 | GGNN | `k32_tau0.5_r2` | `k128_tau0.5_r2` | the GGNN graph directory |
 | GANNS | `k16_m64` | `k64_m256` | `graph.nsw` |
 | CAGRA | `gd32_igd64_it20` | `gd128_igd256_it20` | `_search_cache/index_with_dataset.cagra`, the float index with its dataset that the Figure 7 CAGRA sweep (`experiments/qps_recall/run_graph_systems.sh`) writes and searches |
+| PilotANN | `nsg32_efc80_dp192_r0.25` | `nsg128_efc80_dp192_r0.25` | `index.pt` under `$INDEX_DIR/<dataset>/pilotann/<tag>/`, the index of the Figure 7 PilotANN sweep; `PILOT_CKPT_DEEP1M` and `PILOT_CKPT_GIST` point to another copy (read by `run_point.sh`) |
 
 - Programs: `bash src/fp16/build.sh` (FP32 and FP16 search programs in `$BIN_DIR`), `bash third_party/build/diskann.sh`
-  and `build_bang_graphs.sh` below (BANG graphs and `$W/build/bang/r<R>/bang_search`).
+  and `build_bang_graphs.sh` below (BANG graphs and `$W/build/bang/r<R>/bang_search`), and PilotANN in `$ENV_PILOT`
+  compiled for the A10 without the search statistics that the patch adds to its GPU kernel
+  (`PILOT_NO_KERNEL_STATS=1 TORCH_CUDA_ARCH_LIST=8.6 bash third_party/build/pilotann.sh`). The statistics (cycle
+  timers, counters and the block-wide barriers they need) record path lengths and stage times; without them the
+  kernel is the upstream one, as the programs of the other systems are. `profile_pilotann.sh` checks the installed extension with
+  `cuobjdump` (CUDA 11.1 or newer, `CUOBJDUMP` to choose one) and stops if its SASS still reads the clock.
 - Nsight Compute and Nsight Systems on `PATH`, or set `NCU` and `NSYS`. Python 3 with numpy (`$ENV_BUILD/bin/python`).
 
 ## Commands
@@ -57,6 +63,7 @@ bash experiments/profiling/check_points.sh                  # FP32 and FP16 reca
 bash experiments/profiling/bang_sweep.sh deep1M             # BANG operating point, also for gist
 bash experiments/profiling/find_kernels_all.sh              # main kernels and BANG launches per search
 bash experiments/profiling/run_all.sh                       # Nsight Compute, Table 10 QPS, Figure 14 curves
+bash experiments/profiling/profile_pilotann.sh              # PilotANN in Table 9: point, main kernel, Nsight Compute
 bash experiments/profiling/make_tables.sh > "$OUT_DIR/profiling/tables.tex"
 ```
 
@@ -80,18 +87,23 @@ points whose QPS standard deviation over the three timed searches exceeds 10% of
 QPS, and the regular expression of the main kernel. For SONG, GGNN, GANNS and CAGRA the operating point is the
 setting with the highest QPS among those with Recall@10 >= 0.95 in the Figure 7 sweep; CAGRA uses itopk = it rounded
 up to a multiple of 32. For BANG it is the first L of the `bang_sweep.sh` sweep (step 8) with Recall@10 >= 0.95,
-measured on the A10: L = 50 on DEEP1M (0.9601; L = 42 gives 0.9497) and L = 66 on GIST (0.9519).
+measured on the A10: L = 50 on DEEP1M (0.9601; L = 42 gives 0.9497) and L = 66 on GIST (0.9519). PilotANN searches
+the index of Figure 7, so its operating point is the ef with the highest QPS among those with Recall@10 >= 0.95 in
+the Figure 7 sweep: ef = 20 on DEEP1M (0.9502) and ef = 100 on GIST (0.9521). `profile_pilotann.sh` stops if the
+A10 run of that ef falls below 0.95; the next candidates of Figure 7 are ef = 24 on DEEP1M (0.9532) and ef = 108 on
+GIST (0.9521).
 
-| Dataset | SONG | GGNN | GANNS | CAGRA | BANG |
-|---|---|---|---|---|---|
-| DEEP1M | 112 | 76 | 112 | 48 | 50 |
-| GIST | 84 | 152 | 80 | 80 | 66 |
+| Dataset | SONG | GGNN | GANNS | CAGRA | BANG | PilotANN |
+|---|---|---|---|---|---|---|
+| DEEP1M | 112 | 76 | 112 | 48 | 50 | 20 |
+| GIST | 84 | 152 | 80 | 80 | 66 | 100 |
 
 `run_point.sh` runs the operating point with the Figure 7 search parameters. SONG, GGNN, GANNS and CAGRA search the
 first batch once as an untimed warm-up and then three times timed, so their main kernel is launched four times;
 `sweep.tsv` holds the means over the timed searches and `it_batches.tsv` every search.
 BANG runs four searches at one L (one untimed warm-up, then three timed) with `OMP_NUM_THREADS=14`; its `sweep.tsv`
-has the mean wall time of the timed searches. Recall@10 is computed against the top-10
+has the mean wall time of the timed searches. PilotANN does the same at one ef (`pilotann_sweep.py --efs`), also with
+14 CPU threads. Recall@10 is computed against the top-10
 ground truth that `make_gt_k10.py` derives from `gt.ibin`.
 
 Expected recall (`check_points.sh`); the FP32 values are those of the Figure 7 programs:
@@ -110,10 +122,13 @@ needed) and lists the kernels by total time. SONG, GGNN, GANNS and CAGRA have on
 100% of the kernel time, in FP32 and FP16; in the FP16 CAGRA run the one-time `float_to_half` conversion is the only
 other kernel of note. BANG launches `compute_neighborDist_par` once per search iteration; it takes 72.3% of the
 kernel time on DEEP1M and 90.5% on GIST, with 87 and 78 launches per search (`Instances` in `kern_sum.csv` divided
-by the number of searches in the run). `profile_all.sh` therefore profiles all launches of the first timed search
-(`NCU_LAUNCH_SKIP` = 1 x launches, which skips the warm-up search, `NCU_LAUNCH_COUNT` = launches; set
-`BANG_LAUNCHES_DEEP1M` and `BANG_LAUNCHES_GIST` if a sweep gives another L), and `summarize.py` combines them into
-one row.
+by the number of searches in the run). PilotANN searches on the GPU with `traverse_cuda_kernel`, launched once per
+chunk of 250 queries, so 40 times per search on DEEP1M and 4 times on GIST, after one `routing_cuda_kernel` launch
+that finds the entry points; the rest of its search runs on the CPU. `profile_all.sh` (BANG) and
+`profile_pilotann.sh` therefore profile all launches of the first timed search (`NCU_LAUNCH_SKIP` = 1 x launches,
+which skips the warm-up search, `NCU_LAUNCH_COUNT` = launches; set `BANG_LAUNCHES_DEEP1M` and `BANG_LAUNCHES_GIST` if
+a sweep gives another L; `profile_pilotann.sh` takes the PilotANN launches from `kern_sum.csv`), and `summarize.py`
+combines them into one row.
 
 | System | Main kernel (`kernel_regex`) |
 |---|---|
@@ -122,6 +137,7 @@ one row.
 | GANNS | `SearchK` |
 | CAGRA | `cuvs::neighbors::cagra::detail::single_cta_search::search_kernel<...>` |
 | BANG | `compute_neighborDist_par` |
+| PilotANN | `traverse_cuda_kernel` |
 
 ## Nsight Compute settings
 
@@ -147,6 +163,7 @@ The stall shares leave out `selected` (issuing), `not_selected` (ready but not p
 not stalls. `make_tables.sh` stops if long scoreboard is not the main stall of a row. For BANG the ratios of the
 launches are weighted by their own denominators (duration for SM and GPU DRAM, active SM cycles for Occ.,
 instructions for Thr., issue-active cycles for the stalls, L2 sectors for the L2 hit rate) and the bytes are summed.
+PilotANN is combined in the same way.
 
 ## Outputs
 
@@ -164,12 +181,13 @@ All under `$OUT_DIR/profiling/`.
 | `ncu_log/`, `table10_qps/`, `fp16_curves/` | `clocks.csv` and `clocks_summary.txt` of `log_clocks.sh` |
 | `tables.tex` | LaTeX rows of Tables 9 and 10 |
 | `bang_sweep/<dataset>/sweep.tsv` | BANG `L`, mean wall ms, QPS, Recall@10 in percent, wall ms standard deviation, number of timed runs (one warm-up and three timed runs per L) |
+| `<dataset>_pilotann/point/`, `ncu_log_pilotann/<dataset>/` | PilotANN operating-point run and clock log of `profile_pilotann.sh` |
 | `smoke/`, `platform/`, `check/` | smoke test, machine description, program check |
 
 ## Notes
 
 - QPS is `nq / kernel_ms` in Table 10 and Figure 14, the kernel-only measure of Figure 7. The QPS of BANG in
-  `points.tsv` is the wall-clock value that BANG prints.
+  `points.tsv` is the wall-clock value that BANG prints, and that of PilotANN the wall-clock value of Figure 7.
 - The clocks are not locked because the measurements should reflect normal use. Under a sustained load the 150 W
   limit of the A10 lowers the SM clock, so every measurement starts from an idle GPU: 3 s before each Nsight
   Compute pass, 2 s before each Table 10 run, 0.5 s before each iteration count of a curve (before its warm-up

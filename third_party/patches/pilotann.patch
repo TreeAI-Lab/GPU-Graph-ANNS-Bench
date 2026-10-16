@@ -312,7 +312,7 @@ index 82bb0cf..9e26d0b 100644
  }
  // clang-format on
 diff --git a/extension/traverse_cuda.cu b/extension/traverse_cuda.cu
-index d73c976..f0292e3 100644
+index d73c976..9bf9e25 100644
 --- a/extension/traverse_cuda.cu
 +++ b/extension/traverse_cuda.cu
 @@ -11,7 +11,7 @@
@@ -343,72 +343,91 @@ index d73c976..f0292e3 100644
                  );
                  if (v >= 0) {
                      cached_neighbors[cursor + offset] = v;
-@@ -175,13 +176,26 @@ __global__ void __launch_bounds__(BEAM_WIDTH *WARP_SIZE, 1)
+@@ -175,13 +176,37 @@ __global__ void __launch_bounds__(BEAM_WIDTH *WARP_SIZE, 1)
          return n_workloads;
      };
  
++    // Search statistics (path length, distance count, cycles of the three stages) for the stage-time figure.
++    // Building with -DPILOT_NO_KERNEL_STATS removes them, with their barriers and atomics, so that the kernel is the
++    // upstream one (used for the hardware counters).
++#ifndef PILOT_NO_KERNEL_STATS
 +    unsigned long long start, end;
++#endif
      // iterate
      for (auto step = 0; step < ef_search; step += 1) {
          // expand
++#ifndef PILOT_NO_KERNEL_STATS
 +        if (threadIdx.x == 0 && threadIdx.y == 0) {
 +         start = clock64();
 +        }
++#endif
          auto n_workloads = fetch_neighbors();
++#ifndef PILOT_NO_KERNEL_STATS
 +        if(threadIdx.x==0 && threadIdx.y == 0){
 +            atomicAdd(&path_length[0], blockDim.y);
 +            atomicAdd(&calc_count[0], n_workloads);
 +        }
++#endif
          if (n_workloads < N_WORKERS) {
              break;
          }
++#ifndef PILOT_NO_KERNEL_STATS
 +        __syncthreads();
 +        if (threadIdx.x == 0 && threadIdx.y == 0) {
 +            end = clock64();
 +            atomicAdd(reinterpret_cast<unsigned long long*>(&fetch_time[0]),(end - start));
 +        }
++#endif
  
          // compute distances
          auto tile_idx = threadIdx.x % TEAM_SIZE;
-@@ -196,13 +210,24 @@ __global__ void __launch_bounds__(BEAM_WIDTH *WARP_SIZE, 1)
+@@ -196,13 +221,30 @@ __global__ void __launch_bounds__(BEAM_WIDTH *WARP_SIZE, 1)
              auto v = predicate ? cached_neighbors[worker_idx] : -1;
  
              // distance
 -            auto location = predicate ? mapping[v] : -1;
 +            auto location = (predicate && v >= 0) ? mapping[v] : -1;
              predicate = (location < 0) ? false : predicate;
++#ifndef PILOT_NO_KERNEL_STATS
 +            if(threadIdx.x==0 && threadIdx.y==0 && predicate){
 +                start = clock64();
 +            }
++#endif
              auto distance = _compute_dist_cuda<scalar_t, vector_t>(
                  storage, cached_query, d_model, location, tile_idx, predicate
              );
  
++#ifndef PILOT_NO_KERNEL_STATS
 +            __syncthreads();
 +            if(threadIdx.x==0 && threadIdx.y==0 && predicate){
 +                end = clock64();
 +                atomicAdd(reinterpret_cast<unsigned long long*>(&calc_time[0]),(end - start));
 +            }
++#endif
              // heapify
++#ifndef PILOT_NO_KERNEL_STATS
 +            if(threadIdx.x==0 && threadIdx.y==0 && predicate){
 +                start = clock64();
 +            }
++#endif
              for (auto i = 0; i < N_WORKERS; i += 1) {
                  if (predicate && tile_idx == 0 && team_idx == i) {
                      heap_replace<scalar_t, index_t>(
-@@ -219,6 +244,11 @@ __global__ void __launch_bounds__(BEAM_WIDTH *WARP_SIZE, 1)
+@@ -219,6 +261,13 @@ __global__ void __launch_bounds__(BEAM_WIDTH *WARP_SIZE, 1)
                  __syncwarp();
              }
  
++#ifndef PILOT_NO_KERNEL_STATS
 +            __syncthreads();
 +            if(threadIdx.x==0 && threadIdx.y==0 && predicate){
 +                end = clock64();
 +                atomicAdd(reinterpret_cast<unsigned long long*>(&update_time[0]),(end - start));
 +            }
++#endif
              // advance
              worker_idx += BEAM_WIDTH * N_WORKERS;
          }
-@@ -251,7 +281,9 @@ void traverse_cuda(
+@@ -251,7 +300,9 @@ void traverse_cuda(
      const torch::Tensor &indptr, const torch::Tensor &indices,
      const torch::Tensor &mapping, const torch::Tensor &storage,
      const torch::Tensor &query, const torch::Tensor &initial_I,
@@ -419,7 +438,7 @@ index d73c976..f0292e3 100644
  ) {
      CHECK_CUDA(indptr, 1, torch::kInt64);
      CHECK_CUDA(indices, 1, torch::kInt64);
-@@ -262,6 +294,11 @@ void traverse_cuda(
+@@ -262,6 +313,11 @@ void traverse_cuda(
      CHECK_CUDA(initial_D, 2, torch::kFloat32);
      CHECK_CUDA(output_I, 3, torch::kInt64);
      CHECK_CUDA(output_D, 3, torch::kFloat32);
@@ -431,7 +450,7 @@ index d73c976..f0292e3 100644
  
      // sizes
      auto d_model = query.size(-1);
-@@ -293,7 +330,11 @@ void traverse_cuda(
+@@ -293,7 +349,11 @@ void traverse_cuda(
                  mapping.data_ptr<index_t>(), storage.data_ptr<float>(),       \
                  query.data_ptr<float>(), initial_I.data_ptr<index_t>(),       \
                  initial_D.data_ptr<float>(), n_storage, d_model, n_neighbors, \

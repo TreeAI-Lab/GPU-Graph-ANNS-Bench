@@ -12,8 +12,8 @@
 #   PRE_SLEEP_S=3         sleep before each pass
 #   --cache-control all   caches are flushed before each replay pass
 #   NCU_LAUNCH_SKIP=1, NCU_LAUNCH_COUNT=1  skip the warm-up launch and measure one launch, the first timed search.
-#                         BANG launches its main kernel once per iteration; profile_all.sh sets these to all launches
-#                         of its first timed search.
+#                         BANG launches its main kernel once per iteration and PilotANN once per chunk of queries;
+#                         profile_all.sh and profile_pilotann.sh set these to all launches of the first timed search.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 source "$HERE/../../env.sh"

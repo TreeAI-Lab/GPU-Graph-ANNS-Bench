@@ -3,16 +3,18 @@
 # holds only the operating point. SONG, GGNN, GANNS and CAGRA run one untimed warm-up search and then three timed
 # searches, so their main kernel is launched exactly four times (Nsight Compute skips the first launch and measures
 # the second, the first timed search). BANG runs four searches at one L (one warm-up, three timed) and launches its
-# main kernel once per iteration. The search parameters are those of the Figure 7 QPS-recall sweep.
+# main kernel once per iteration. PilotANN runs four searches at one ef (one warm-up, three timed) and launches its
+# GPU traversal kernel once per chunk of 250 queries. The search parameters are those of the Figure 7 QPS-recall
+# sweep.
 #
-# usage: run_point.sh <gist|deep1M> <song|ggnn|ganns|cagra|bang> <out dir> [fp32|fp16]
+# usage: run_point.sh <gist|deep1M> <song|ggnn|ganns|cagra|bang|pilotann> <out dir> [fp32|fp16]
 #   The FP32 and FP16 programs of SONG, GGNN, GANNS and CAGRA are built by src/fp16/build.sh.
 #   IT_LIST="15 16 ..." searches these iteration counts instead of the operating point (used by qps_curve.sh).
 #   PRE_SLEEP_S sleeps before the run, so that the GPU starts from idle and the previous load does not
 #   affect this one when the clocks are not locked.
 # output: <out dir>/sweep.tsv (it, nq, kernel_ms, recall@10, ... as written by each program; times are the means
-#   over the timed searches) and, for SONG, GGNN, GANNS and CAGRA, it_batches.tsv (every search, phase warmup or
-#   timed1 to timed3)
+#   over the timed searches) and, for SONG, GGNN, GANNS, CAGRA and PilotANN, it_batches.tsv (every search, phase
+#   warmup or timed1 to timed3)
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 source "$HERE/../../env.sh"
@@ -27,9 +29,11 @@ GT=$OUT_DIR/profiling/gt/${DS}_k10.ibin   # top-10 ground truth; GANNS needs exa
 
 case "$DS" in
   deep1M) N=1000000; DIM=96; DEG=32; SHIFT=6; NQ=10000; BANG_R=32
-          CTAG=gd32_igd64_it20; GTAG=k32_tau0.5_r2; ATAG=k16_m64; STAG=fd32_shift6_deg16 ;;
+          CTAG=gd32_igd64_it20; GTAG=k32_tau0.5_r2; ATAG=k16_m64; STAG=fd32_shift6_deg16
+          PTAG=nsg32_efc80_dp192_r0.25; PCKPT=${PILOT_CKPT_DEEP1M:-} ;;
   gist)   N=1000000; DIM=960; DEG=128; SHIFT=8; NQ=1000; BANG_R=128
-          CTAG=gd128_igd256_it20; GTAG=k128_tau0.5_r2; ATAG=k64_m256; STAG=fd128_shift8_deg64 ;;
+          CTAG=gd128_igd256_it20; GTAG=k128_tau0.5_r2; ATAG=k64_m256; STAG=fd128_shift8_deg64
+          PTAG=nsg128_efc80_dp192_r0.25; PCKPT=${PILOT_CKPT_GIST:-} ;;
   *) echo "unknown dataset $DS" >&2; exit 1 ;;
 esac
 # Graphs of Figure 7 (experiments/qps_recall/build_graphs.sh); CAGRA uses the index with its dataset attached that
@@ -40,6 +44,9 @@ GANNS_GRAPH=$INDEX_DIR/$DS/ganns/$ATAG/graph.nsw
 CAGRA_INDEX=$INDEX_DIR/$DS/cagra/$CTAG/_search_cache/index_with_dataset.cagra
 BANG_PREFIX=$INDEX_DIR/$DS/bang/r${BANG_R}_l100_b4/bang_format/$DS   # build_bang_graphs.sh
 BANG_BIN=$W/build/bang/r$BANG_R/bang_search                          # third_party/build/bang.sh <R>
+# The PilotANN index of Figure 7 (experiments/qps_recall/build_graphs.sh); PILOT_CKPT_DEEP1M and PILOT_CKPT_GIST
+# point to another copy
+PILOT_CKPT=${PCKPT:-$INDEX_DIR/$DS/pilotann/$PTAG/index.pt}
 
 IT=$(awk -F'\t' -v d="$DS" -v s="$SYS" '$1==d && $2==s {print $3}' "$HERE/points.tsv")
 [[ "$IT" =~ ^[0-9]+$ ]] || { echo "no operating point for $DS $SYS in points.tsv" >&2; exit 2; }
@@ -78,6 +85,16 @@ case "$SYS" in
       NF >= 4 && $1 ~ /^[0-9]+$/ && $4 ~ /^[0-9.]+$/ {
         last = sprintf("%s\t%s\t%s\t%s\t%.6f\t%s\t%s", $1, nq, $2, $3, $4 / 100, (NF >= 6 ? $5 : ""), (NF >= 6 ? $6 : "")) }
       END { print last }' "$OUT/bang.log" > "$OUT/sweep.tsv" ;;
+  pilotann)
+    # FP32 only. --efs runs only this ef: one warm-up search, then three timed searches (pilotann_sweep.py), with
+    # the 14 CPU threads of Figure 7. sweep.tsv has the means over the timed searches; QPS = nq / mean wall time.
+    [[ "$PREC" == fp32 ]] || { echo "PilotANN runs in FP32 only" >&2; exit 1; }
+    [[ -f "$PILOT_CKPT" ]] || { echo "missing PilotANN index $PILOT_CKPT (set PILOT_CKPT_DEEP1M or PILOT_CKPT_GIST)" >&2; exit 2; }
+    EFS=$(paste -sd, "$OUT/it_point.txt")
+    OMP_NUM_THREADS=${OMP_NUM_THREADS:-14} LD_LIBRARY_PATH=$ENV_PILOT/lib:${LD_LIBRARY_PATH:-} \
+      "$ENV_PILOT/bin/python" -u "$BENCH/src/search/pilotann/pilotann_sweep.py" --dataset "$DS" \
+      --ckpt "$PILOT_CKPT" --query "$D/query.fbin" --gt "$GT" --out "$OUT" --batch "$NQ" --k 10 --efs "$EFS" \
+      > "$OUT/pilotann.log" 2>&1 ;;
   *) echo "unknown system $SYS" >&2; exit 1 ;;
 esac
 echo "[run_point] done; recall in $OUT/sweep.tsv"

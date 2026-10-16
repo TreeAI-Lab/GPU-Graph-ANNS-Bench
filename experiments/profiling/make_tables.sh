@@ -25,7 +25,7 @@ BEGIN {
   NAME["gist"] = "GIST~\\cite{herve2011pq}"; NAME["deep1M"] = "DEEP1M~\\cite{DEEP}"
   NAME["song"] = "SONG~\\cite{2020SONG}"; NAME["ggnn"] = "GGNN~\\cite{2022GGNN}"
   NAME["ganns"] = "GANNS~\\cite{2022GANNS}"; NAME["cagra"] = "CAGRA~\\cite{2024CAGRA}"
-  NAME["bang"] = "BANG~\\cite{2024BANG}"
+  NAME["bang"] = "BANG~\\cite{2024BANG}"; NAME["pilotann"] = "PilotANN~\\cite{2025PilotANN}"
   while ((getline line < Q) > 0) {
     split(line, f, "\t")
     if (f[1] == "dataset") continue
@@ -37,7 +37,7 @@ NR == 1 { for (i = 1; i <= NF; i++) c[$i] = i; next }
 END {
   nd = split("gist deep1M", D, " ")
   print "% Table 9 (tab:profiling)"
-  ns = split("song ggnn ganns cagra bang", T, " ")
+  ns = split("song ggnn ganns cagra bang pilotann", T, " ")
   for (d = 1; d <= nd; d++) {
     printf "\t\t\\multicolumn{7}{@{}l}{\\textit{%s}} \\\\\n\t\t\\hline\n", cite(D[d])
     for (s = 1; s <= ns; s++) {

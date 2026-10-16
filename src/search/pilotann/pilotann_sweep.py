@@ -10,7 +10,8 @@ Outputs in --out: sweep.tsv, it_batches.tsv (every run), load_timing.tsv, params
 The log prints one line per run and "[pilotann] <dataset> ef=<ef> mean wall=<ms> qps=<qps> recall=<r>" per ef.
 Usage (environment $ENV_PILOT):
   python src/search/pilotann/pilotann_sweep.py --dataset sift1M --ckpt index.pt --query query.fbin --gt gt.ibin
-      --out DIR [--batch 10000] [--k 10]
+      --out DIR [--batch 10000] [--k 10] [--efs 20,24]
+--efs searches only the listed ef values (used for the operating points of experiments/profiling).
 """
 from __future__ import annotations
 
@@ -145,6 +146,7 @@ def main() -> None:
     ap.add_argument("--out", required=True, type=Path, help="output directory")
     ap.add_argument("--batch", type=int, default=10000, help="number of queries searched")
     ap.add_argument("--k", type=int, default=10)
+    ap.add_argument("--efs", default="", help="comma-separated ef values to search instead of the default sweep")
     args = ap.parse_args()
 
     out = args.out
@@ -160,7 +162,7 @@ def main() -> None:
     bs = min(int(args.batch), int(qn))
     q = torch.from_numpy(queries[:bs].copy())
     chunk = chunk_for(bs)
-    efs = DEFAULT_EFS
+    efs = [int(x) for x in args.efs.split(",") if x.strip()] or DEFAULT_EFS
 
     print(f"load {ckpt}", flush=True)
     t_load0 = time.perf_counter()

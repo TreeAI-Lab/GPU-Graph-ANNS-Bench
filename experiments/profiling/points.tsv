@@ -9,3 +9,5 @@ deep1M	ganns	112	0.9526	719378	^SearchK\(	Figure 7 sweep
 deep1M	cagra	48	0.9513	1963402	single_cta_search::search_kernel	Figure 7 sweep (itopk 64, derived from it)
 gist	bang	66	0.9519	4630	compute_neighborDist_par	bang_sweep.sh on the A10, R=128 graph: first L (step 8) with Recall@10 >= 0.95; QPS is the wall-clock value BANG reports
 deep1M	bang	50	0.9601	60606	compute_neighborDist_par	bang_sweep.sh on the A10, R=32 graph: first L (step 8) with Recall@10 >= 0.95 (L=42 gives 0.9497)
+gist	pilotann	100	0.9521	5166	traverse_cuda_kernel	Figure 7 sweep (nsg128 index): highest QPS with Recall@10 >= 0.95; QPS is the wall-clock value of the whole search
+deep1M	pilotann	20	0.9502	132722	traverse_cuda_kernel	Figure 7 sweep (nsg32 index): highest QPS with Recall@10 >= 0.95; QPS is the wall-clock value of the whole search
