@@ -4,10 +4,10 @@ Figure 7 plots QPS against Recall@10 (k = 10) on eight datasets. These scripts p
 GANNS and CAGRA on SIFT1M, DEEP1M, DEEP10M, GloVe200, NYTimes, GIST and DEEP100M (CAGRA and GGNN only), of BANG on
 the first six of them and of PilotANN on SIFT1M, DEEP1M, DEEP10M and GIST. Each curve is a sweep of the search
 effort (iterations, BANG's worklist length L, PilotANN's ef) over one batch made of all queries of the dataset.
-Figure 1 is the CAGRA curve on SIFT1M from the same runs. Figure 10 is the kernel time per 10,000 queries at 90%
-Recall@10 of SONG, GGNN, GANNS and CAGRA on DEEP1M, DEEP10M and DEEP100M, taken from the same runs. The MNIST8M
-panel, the non-graph baselines (IVF-PQ, brute force) and the CPU curves come from other experiments, and the BANG
-and PilotANN bars of Figure 10 from the runs of the original manuscript.
+Figure 1 is the CAGRA curve on SIFT1M from the same runs. Figure 10 is the time per 10,000 queries at 90% Recall@10
+of the six systems on DEEP1M, DEEP10M and DEEP100M, taken from the same curves. The MNIST8M panel, the DEEP100M BANG
+curve (so also the DEEP100M BANG bar of Figure 10, which `fig10.tsv` leaves empty), the non-graph baselines (IVF-PQ,
+brute force) and the CPU curves come from other experiments.
 
 ## Prerequisites
 
@@ -58,12 +58,16 @@ Indexes go to `$INDEX_DIR/<data>/<system>/<tag>/` with `params.txt` and `build.l
 | `bang/raw.log`, `bang/sweep.tsv` | output of `bang_search`; per L the means over the three timed runs: `it itopk` (= L) `nq wall_ms qps recall@10`, BANG's counters and stage times `iterations calc_count path_length pq_table_ms gpu_distance_ms sort_merge_ms neighbor_filter_ms prefetch_ms l2_rerank_gpu_ms transfer_ms neighbor_seek_cpu_ms`, then `wall_ms_std n_timed` |
 | `pilotann/sweep.tsv` | per ef the means over the three timed runs: `it itopk` (= ef) `nq warmup_pipeline_ms h2d_query_ms pipeline_ms d2h_topk_ms wall_ms qps recall@10 gpu_used_mib host_rss_mib svd_ms entry_ms parts_sum_ms pipeline_ms_std wall_ms_std n_timed` |
 | `summary.tsv` | all points: `dataset algo it itopk nq warmup_kernel_ms h2d_query_ms kernel_ms d2h_topk_ms wall_ms qps recall@10 gpu_used_mib host_rss_mib kernel_ms_std wall_ms_std n_timed` (SONG memory left empty: its 16 GB device heap counts as used); `<dataset>/summary.tsv` per dataset |
-| `fig07_points.tsv` | `dataset system param recall_at_10 qps` as plotted in Figures 1 and 7 |
+| `fig07_points.tsv` | `dataset system param recall_at_10 qps excluded` as plotted in Figures 1 and 7; `excluded` marks the SONG points that Figure 7 leaves out (`song_noise_filter`) |
 | `fig10.tsv` | `system dataset time_us_per_10k` of Figure 10; empty when no point reaches 0.9 or the system was not run |
 
 QPS in the figures: for CAGRA, GGNN, GANNS and SONG nq / `kernel_ms` (mean time of the search kernel, base and
 graph already in GPU memory); for BANG and PilotANN the `qps` column, nq / mean wall time of the whole search,
-because both also work on the CPU. Every point is searched once as an untimed warm-up and then timed three times. Figure 10: 10,000 / (highest such QPS among the points with Recall@10 >= 0.9), in microseconds.
+because both also work on the CPU. Every point is searched once as an untimed warm-up and then timed three times. Figure 10: 10,000 / (highest such QPS among the plotted points with Recall@10 >= 0.9), in microseconds.
+SONG allocates memory inside its kernel, so its kernel time varies between runs. Figure 7 leaves out the SONG points
+that `summarize.py` marks: among the points with Recall@10 >= 0.6, sorted by recall, an isolated dip below recall
+0.9 (QPS lower than 0.8 times the smaller neighbour), and then every point whose QPS is higher than that of a point
+with lower recall. Points are dropped, never changed.
 
 ## Settings
 

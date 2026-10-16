@@ -7,11 +7,12 @@ Writes
                                 kernel_ms_std, wall_ms_std, n_timed (times are means over the n_timed timed runs;
                                 it is L for BANG and ef for PilotANN; empty cells: not measured)
   <root>/<dataset>/summary.tsv  the rows of one dataset, without the dataset column
-  <root>/fig07_points.tsv       dataset, system, param, recall_at_10, qps as plotted in Figures 1 and 7:
+  <root>/fig07_points.tsv       dataset, system, param, recall_at_10, qps, excluded as plotted in Figures 1 and 7:
                                 CAGRA, GGNN, GANNS, SONG: nq / kernel time; BANG, PilotANN: the qps column
-                                (nq / wall time of the whole search)
-  <root>/fig10.tsv              system, dataset, time_us_per_10k: kernel time per 10,000 queries of the fastest
-                                point with Recall@10 >= 0.9, for the four GPU systems on DEEP1M, DEEP10M, DEEP100M
+                                (nq / wall time of the whole search); excluded = song_noise_filter for the SONG
+                                points that Figure 7 leaves out (song_noise_filter below), empty otherwise
+  <root>/fig10.tsv              system, dataset, time_us_per_10k: time per 10,000 queries of the fastest plotted
+                                point with Recall@10 >= 0.9, for the six systems on DEEP1M, DEEP10M, DEEP100M
                                 (empty: no point reaches 0.9 or no run)
 Usage: python summarize.py --root $OUT_DIR/qps_recall
 """
@@ -27,6 +28,8 @@ FIELDS = ["algo", "it", "itopk", "nq", "warmup_kernel_ms", "h2d_query_ms", "kern
           "qps", "recall@10", "gpu_used_mib", "host_rss_mib", "kernel_ms_std", "wall_ms_std", "n_timed"]
 SYSTEM = {"cagra": "CAGRA", "ggnn": "GGNN", "ganns": "GANNS", "song": "SONG", "bang": "BANG", "pilotann": "PilotANN"}
 PARAM = {"cagra": "it", "ggnn": "it", "ganns": "it", "song": "it", "bang": "L", "pilotann": "ef"}
+MIN_RECALL = 0.6  # lowest recall plotted in Figure 7
+DIP_FRAC, DIP_RECALL_MAX = 0.8, 0.9
 
 
 def gpu_rows(root: Path, ds: str, algo: str) -> List[Dict[str, str]]:
@@ -106,6 +109,26 @@ def plotted_qps(r: Dict[str, str]) -> float:
     return float(r["qps"])
 
 
+def song_noise_filter(points: List[Dict[str, float]]) -> List[int]:
+    """Indices of the SONG points of one dataset that Figure 7 plots; points holds recall and qps.
+
+    Among the points with recall >= MIN_RECALL, sorted by recall: below recall 0.9 drop isolated dips (QPS lower
+    than 0.8x the smaller neighbour), then keep only points on the running minimum of QPS. Points are dropped,
+    never changed. SONG's kernel time varies between runs (it allocates memory inside the kernel).
+    """
+    order = sorted((i for i, p in enumerate(points) if p["recall"] >= MIN_RECALL), key=lambda i: points[i]["recall"])
+    q = [points[i]["qps"] for i in order]
+    r = [points[i]["recall"] for i in order]
+    order = [i for j, i in enumerate(order)
+             if not (r[j] < DIP_RECALL_MAX and 0 < j < len(q) - 1 and q[j] < DIP_FRAC * min(q[j - 1], q[j + 1]))]
+    kept, run_min = [], float("inf")
+    for i in order:
+        if points[i]["qps"] <= run_min:
+            kept.append(i)
+        run_min = min(run_min, points[i]["qps"])
+    return kept
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--root", required=True, type=Path, help="output folder of the runs ($OUT_DIR/qps_recall)")
@@ -132,14 +155,20 @@ def main() -> None:
             continue
         points.append({"dataset": r["dataset"], "system": SYSTEM[r["algo"]],
                        "param": f"{PARAM[r['algo']]}={r['it']}", "recall_at_10": r["recall@10"],
-                       "qps": f"{plotted_qps(r):.2f}"})
-    write(root / "fig07_points.tsv", ["dataset", "system", "param", "recall_at_10", "qps"], points)
+                       "qps": f"{plotted_qps(r):.2f}", "excluded": ""})
+    for ds in DATASETS:
+        song = [p for p in points if p["dataset"] == ds and p["system"] == "SONG"]
+        kept = set(song_noise_filter([{"recall": float(p["recall_at_10"]), "qps": float(p["qps"])} for p in song]))
+        for i, p in enumerate(song):
+            if float(p["recall_at_10"]) >= MIN_RECALL and i not in kept:
+                p["excluded"] = "song_noise_filter"
+    write(root / "fig07_points.tsv", ["dataset", "system", "param", "recall_at_10", "qps", "excluded"], points)
 
     fig10 = []
-    for algo in ("song", "ggnn", "ganns", "cagra"):
+    for algo in ("song", "ggnn", "ganns", "cagra", "bang", "pilotann"):
         for ds in ("deep1M", "deep10M", "deep100M"):
-            qps = [plotted_qps(r) for r in all_rows
-                   if r["dataset"] == ds and r["algo"] == algo and r.get("recall@10") and float(r["recall@10"]) >= 0.9]
+            qps = [float(p["qps"]) for p in points if p["dataset"] == ds and p["system"] == SYSTEM[algo]
+                   and not p["excluded"] and float(p["recall_at_10"]) >= 0.9]
             t = f"{1e4 / max(qps) * 1e6:.0f}" if qps else ""
             fig10.append({"system": SYSTEM[algo], "dataset": ds, "time_us_per_10k": t})
     write(root / "fig10.tsv", ["system", "dataset", "time_us_per_10k"], fig10)
