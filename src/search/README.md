@@ -13,7 +13,7 @@ bash src/search/build.sh            # all; or: cagra | ggnn | ganns | song
 
 | Target | Needs | Binaries in `$BIN_DIR` |
 |---|---|---|
-| `cagra` | cuVS built from source (`third_party/build/cuvs.sh`), `$ENV_CUVS`, system `g++-11` | `cagra_resident_search`, `cagra_build_ivfpq`, `make_graph_to_cagra`, `extract_graph`, `attach_dataset` |
+| `cagra` | cuVS built from source (`third_party/build/cuvs.sh`), `$ENV_CUVS` | `cagra_resident_search`, `cagra_build_ivfpq`, `make_graph_to_cagra`, `extract_graph`, `attach_dataset` |
 | `ggnn` | GGNN libraries (`third_party/build/ggnn.sh`, `$W/build/ggnn`), `$ENV_BUILD` | `ggnn_resident_search` |
 | `ganns` | per-dimension GANNS copy (`third_party/build/ganns.sh <DIM>`, called if missing), `$ENV_BUILD` | `ganns_resident_search_d<DIM>` for DIM 96, 128, 200, 256, 960 |
 | `song` | SONG sources `$W/src/song-orig` (commit fa2d755), `$ENV_BUILD` | `song_resident_search_d<DIM>_fd<FD>` for 96/32, 128/32, 200/64, 256/32, 960/128 |

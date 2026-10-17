@@ -24,8 +24,6 @@ CUTLASS_INCLUDE ?= $(CUVS_DEPS)/nvidiacutlass-src/include
 OBJ_DIR ?= $(W)/build/search/cagra_obj
 
 NVCC := $(ENV_CUVS)/bin/nvcc
-# nvcc 12.9 cannot parse a bf16 literal of the conda gcc 14 headers, and the conda linker conflicts with the
-# system glibc, so cagra_resident_search is compiled and linked with the system g++ 11.
 HOST_CXX ?= $(ENV_CUVS)/bin/x86_64-conda-linux-gnu-g++
 
 # A800 = sm_80
@@ -35,8 +33,7 @@ NVCCFLAGS := -std=c++17 -O3 -DNDEBUG \
 	-arch=sm_$(ARCH) \
 	--expt-extended-lambda \
 	--expt-relaxed-constexpr \
-	--compiler-options -fPIC,-fopenmp,-Wno-deprecated-declarations \
-	-allow-unsupported-compiler
+	--compiler-options -fPIC,-fopenmp,-Wno-deprecated-declarations
 
 INCLUDES := \
 	-I$(CUVS_INSTALL)/include \

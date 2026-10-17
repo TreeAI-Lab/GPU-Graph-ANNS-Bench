@@ -3,9 +3,9 @@ name: cuvs-build
 channels: [conda-forge]
 dependencies:
   - python=3.12
-  - cuda-version=12.9
-  - cuda-nvcc=12.9
-  - cuda-cudart-dev=12.9
+  - cuda-version=12.4
+  - cuda-nvcc=12.4
+  - cuda-cudart-dev=12.4
   - cuda-nvtx-dev
   - cuda-profiler-api
   - libcublas-dev
@@ -16,8 +16,8 @@ dependencies:
   - cuda-nvrtc-dev
   - libnvjitlink-dev
   - sysroot_linux-64=2.28
-  - gcc_linux-64=14
-  - gxx_linux-64=14
+  - gcc_linux-64=12
+  - gxx_linux-64=12
   - cmake>=3.30
   - ninja
   - openblas

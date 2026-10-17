@@ -22,7 +22,7 @@ export CUDAHOSTCXX=$CXX
 # headers of another toolkit gives type errors.
 for h in curand_kernel.h cuda_profiler_api.h; do
   [ -f "$E/targets/x86_64-linux/include/$h" ] || [ -f "$E/include/$h" ] || {
-    echo "$h not found in $E; install libcurand-dev and cuda-profiler-api for CUDA 12.6" >&2; exit 1; }
+    echo "$h not found in $E; install libcurand-dev and cuda-profiler-api of the CUDA version of nvcc" >&2; exit 1; }
 done
 
 cmake -S "$W/src/faiss" -B "$BUILD_DIR" -G Ninja \

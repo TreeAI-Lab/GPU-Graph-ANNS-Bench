@@ -2,9 +2,9 @@
 name: faiss-build
 channels: [conda-forge]
 dependencies:
-  - cuda-version=12.6
-  - cuda-nvcc=12.6
-  - cuda-cudart-dev=12.6
+  - cuda-version=12.4
+  - cuda-nvcc=12.4
+  - cuda-cudart-dev=12.4
   - libcublas-dev
   - libcurand-dev
   - cuda-profiler-api

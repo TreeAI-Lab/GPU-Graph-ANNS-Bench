@@ -26,9 +26,13 @@ export PATH=$E/bin:$PATH CONDA_PREFIX=$E CUDAToolkit_ROOT=$E CUDACXX=$E/bin/nvcc
 export CC=$E/bin/x86_64-conda-linux-gnu-gcc CXX=$E/bin/x86_64-conda-linux-gnu-g++
 export CUDAHOSTCXX=$CXX
 # conda keeps the CUDA library headers (cuFile among them) under targets/x86_64-linux/include.
-export CXXFLAGS="-isystem $E/targets/x86_64-linux/include ${CXXFLAGS:-}"
+# cuVS compiles with -Werror, and gcc 12 reports a false maybe-uninitialized warning in
+# src/neighbors/brute_force_serialize.cu; -Wno-error keeps that one a warning (the code is unchanged).
+NO_ERR=-Wno-error=maybe-uninitialized
+export CXXFLAGS="-isystem $E/targets/x86_64-linux/include $NO_ERR ${CXXFLAGS:-}"
 
 cmake -S "$W/src/cuvs/cpp" -B "$BUILD_DIR" -G Ninja \
+      -DCMAKE_CXX_FLAGS="$CXXFLAGS" -DCMAKE_CUDA_FLAGS="-Xcompiler=$NO_ERR" \
       -DCMAKE_INSTALL_PREFIX="$PREFIX" -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_CUDA_ARCHITECTURES="$CUDA_ARCH" \
       -DBUILD_C_LIBRARY=ON -DBUILD_MG_ALGOS=OFF \

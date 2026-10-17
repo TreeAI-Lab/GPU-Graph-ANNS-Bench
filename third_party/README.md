@@ -103,7 +103,7 @@ Settings that matter:
   intrinsics) and passes `-allow-unsupported-compiler` to nvcc.
 - Faiss is built as shared libraries with the AVX2 variant, OpenBLAS, GPU support, and without
   Python bindings, C API or tests. Its GPU code includes `curand_kernel.h` and
-  `cuda_profiler_api.h`, so the faiss-build environment needs the CUDA 12.6 cuRAND and profiler
+  `cuda_profiler_api.h`, so the faiss-build environment needs the CUDA 12.4 cuRAND and profiler
   API headers.
 - cuVS is configured like `./build.sh libcuvs --no-mg` without tests and benchmarks. CMake
   downloads its dependencies (RAFT, RMM, CCCL, cutlass, hnswlib and others) into

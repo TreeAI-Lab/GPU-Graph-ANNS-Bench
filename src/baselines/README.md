@@ -9,8 +9,8 @@ dataset directory of `datasets/README.md` through `src/common/dataset_io.hpp`. U
 ```bash
 bash third_party/build/faiss.sh          # Faiss with GPU support, $W/build/faiss/install
 bash third_party/build/cuvs.sh           # cuVS 25.02, $W/build/cuvs/install
-bash src/baselines/build.sh faiss        # faiss_hnsw, faiss_ivf_pq      (environment $ENV_FAISS, CUDA 12.6)
-bash src/baselines/build.sh cuvs         # cuvs_ivf_pq, cuvs_brute_force (environment $ENV_CUVS, CUDA 12.9)
+bash src/baselines/build.sh faiss        # faiss_hnsw, faiss_ivf_pq      (environment $ENV_FAISS, CUDA 12.4)
+bash src/baselines/build.sh cuvs         # cuvs_ivf_pq, cuvs_brute_force (environment $ENV_CUVS, CUDA 12.4)
 ```
 
 The binaries go to `$BIN_DIR`. The cuVS programs take the RAFT, RMM and CCCL headers and two logger sources from the

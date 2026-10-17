@@ -9,7 +9,7 @@ BIN_DIR ?= $(W)/bin
 COMMON := ../common
 EXTRA_LDFLAGS ?=
 
-# ---------------------------------------------------------------- Faiss (CUDA 12.6 toolchain)
+# ---------------------------------------------------------------- Faiss (CUDA 12.4 toolchain)
 FAISS_SRC ?= $(W)/src/faiss
 FAISS_INSTALL ?= $(W)/build/faiss/install
 
@@ -28,7 +28,7 @@ FAISS_LDFLAGS := -L$(FAISS_INSTALL)/lib -L$(ENV_FAISS)/lib \
 FAISS_CURAND := $(if $(wildcard $(ENV_FAISS)/lib/libcurand.so),-lcurand,)
 FAISS_LIBS := -lfaiss -lopenblas -lcudart -lcublas $(FAISS_CURAND) -lgomp -ldl -lpthread -lm
 
-# ---------------------------------------------------------------- cuVS (CUDA 12.9 toolchain)
+# ---------------------------------------------------------------- cuVS (CUDA 12.4 toolchain)
 # Headers of cuVS and of its dependencies (RAFT, RMM, CCCL, ...) come from the cuVS install
 # prefix and from the dependency directories of the cuVS CMake build (third_party/build/cuvs.sh).
 CUVS_INSTALL ?= $(W)/build/cuvs/install

@@ -18,8 +18,8 @@ export BIN_DIR=${BIN_DIR:-$W/bin}
 export ENV_BUILD=${ENV_BUILD:-$W/envs/build}        # CUDA 12.4 toolchain: SONG, GGNN, GANNS, DiskANN, BANG, our drivers
 export ENV_CAGRA=${ENV_CAGRA:-$W/envs/cagra}        # libcuvs 25.02.01: CAGRA
 export ENV_PILOT=${ENV_PILOT:-$W/envs/pilot}        # PilotANN, Faiss CPU (HNSW)
-export ENV_FAISS=${ENV_FAISS:-$W/envs/faiss-build}  # CUDA 12.6: Faiss GPU built from source (IVF-PQ)
-export ENV_CUVS=${ENV_CUVS:-$W/envs/cuvs-build}     # CUDA 12.9: cuVS built from source (IVF-PQ, brute force)
+export ENV_FAISS=${ENV_FAISS:-$W/envs/faiss-build}  # CUDA 12.4: Faiss GPU built from source (IVF-PQ)
+export ENV_CUVS=${ENV_CUVS:-$W/envs/cuvs-build}     # CUDA 12.4: cuVS built from source (IVF-PQ, brute force)
 
 export GPU=${GPU:-0}
 export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-$GPU}
