@@ -28,7 +28,7 @@ ignored. A row with a non-empty `excluded` column is not plotted.
 | `fig10_scalability.py` | 10 | `fig10_scalability.csv` | system, dataset, time_us_per_10k (empty: out of memory) |
 | `fig11_topk.py` | 11 | `fig11_topk.csv` | k, system, recall, qps |
 | `fig12_degree.py` | 12 | `fig12_degree.csv` | degree, system, recall, qps |
-| `fig13_cagra_parameters.py` | 13 | `fig13_cagra_parameters.csv` | parameter, value, recall_at_10, time_us (10,000 queries) |
+| `fig13_cagra_parameters.py` | 13 | `fig13_cagra_parameters.csv` | parameter, value, recall_at_10, time_us (kernel time of 10,000 queries) |
 | `fig14_fp16.py` | 14 | `fig14_fp16.csv` | dataset, system, precision, recall_at_10, qps, excluded |
 | `fig16_reverse_edges.py` | 16 | `fig16_reverse_edges.csv` | panel, build (R or NR), it, recall_at_10, short_edge_share, long_edge_share |
 

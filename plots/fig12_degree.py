@@ -36,7 +36,7 @@ def main() -> None:
         style.draw_curves(ax, curves + extra, (x_lo, x_hi), (math.log10(lo), math.log10(hi)), 8, 1.3)
         ax.set_xlim(x_lo, x_hi)
         ax.set_ylim(lo, hi)
-        style.finish_qps_panel(fig, ax, 'Recall@K', 0.47 * style.COL_W, os.path.join(args.out, f'fig12_degree{degree}.pdf'))
+        style.finish_qps_panel(fig, ax, 'Recall@10', 0.47 * style.COL_W, os.path.join(args.out, f'fig12_degree{degree}.pdf'))
     style.system_legend(SYSTEMS, os.path.join(args.out, 'fig12_legend.pdf'), ncol=4)
     logger.info('wrote fig12_*.pdf')
 

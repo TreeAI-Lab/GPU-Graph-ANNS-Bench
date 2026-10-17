@@ -3,10 +3,9 @@
 Part of the results of the paper come from the measurements of the original manuscript, made on the same NVIDIA
 A800 host with the search code of the systems instrumented with per-stage timers and counters. This folder holds
 the code of those runs: Tables 5 and 6 (index construction), Figure 5(a) (search iterations of each system's own
-search at 90% Recall@10), Figure 9 (share of search time per stage), the GPU-system and single-thread HNSW curves
-of Figure 11 for K = 40, 70, 100, Figure 12 except PilotANN and multi-thread HNSW, Figure 13 (CAGRA parameters),
-and in Figure 7 the HNSW and Vamana curves, all graph curves on MNIST8M and BANG on DEEP100M. Not every item has
-code; see "What has no code" below.
+search at 90% Recall@10), Figure 9 (share of search time per stage), the Vamana curves of Figure 11 for
+K = 40, 70, 100, Figure 12 except PilotANN, and in Figure 7 the HNSW and Vamana curves, all graph curves on MNIST8M
+and BANG on DEEP100M. Not every item has code; see "What has no code" below.
 
 ## Programs
 
@@ -72,10 +71,9 @@ bash experiments/original/run_cagra.sh sift1M
 bash experiments/original/run_bang.sh sift1M
 bash experiments/original/run_pilotann.sh sift1M
 bash experiments/original/run_vamana.sh sift1M
-bash experiments/original/run_cagra_params.sh            # Figure 13
 
-# Figure 11 (also run_song.sh, run_ganns.sh, run_bang.sh)
-K=40 bash experiments/original/run_ggnn.sh sift1M
+# Figure 11, Vamana
+K=40 bash experiments/original/run_vamana.sh sift1M
 # Figure 12 (SONG also needs build_song.sh sift1M 64)
 bash experiments/original/build_indexes.sh ggnn sift1M 64
 DEGREE=64 bash experiments/original/run_ggnn.sh sift1M
@@ -99,7 +97,6 @@ the original release; the values of the paper curves are the `param` column of t
 | `run_bang.sh` | worklist length L, or `L_LIST` | automatic mode of bang_search | none |
 | `run_pilotann.sh` | `EF_LIST` ef_search | 30 to 80, step 2 | NSG, 1,024 random queries drawn once per process |
 | `run_vamana.sh` | `L_LIST` L | 10 to 40 step 2, 45 to 100 step 5, 120 to 400 step 20 | 48 threads, 1,000 cached nodes, beam width 2 |
-| `run_cagra_params.sh` | width, internal top-k, team size, degree | 1-32, 16-256, 8-32, 16-128 | max_iterations 32 and the other parameters at the run_cagra.sh values |
 
 Index settings (`build_indexes.sh`): SONG FIXED_DEGREE = D; GGNN KBuild = D, tau_build 0.3, 3 refinement
 iterations; GANNS NSW with d_min = D/2 and e = 60 (the example of the GANNS README); CAGRA graph degree D,
@@ -133,13 +130,13 @@ files where the recall is computed outside the program (`tools/cal_recall.py`, m
 scripts of the original release; it reads `gt.ibin` or ivecs). The logs of SONG, GGNN and GANNS hold the output
 of the warm-up and the timed runs, each after a line `### run warmup 1/1` or `### run timed <i>/3`, and their
 `.recall` files one line per timed run; the first line of a Vamana log gives the number of warm-up rows per L.
-`<run>` is the dataset name, `<dataset>-d<D>` for another degree, `<dataset>-<parameter>-<value>` for Figure 13.
+`<run>` is the dataset name, or `<dataset>-d<D>` for another degree.
 Build logs are in `$OUT_DIR/original/build/`. GANNS and PilotANN read the ground truth converted to ivecs under
 `$OUT_DIR/original/gt/`.
 
 | `parse_logs.py` | Columns | Results table |
 |---|---|---|
-| `curves` | run, dataset, system, k, param, recall, qps, source, total_time_us, total_time_us_std, n_timed | fig07_qps_recall.csv, fig11_topk.csv, fig12_degree.csv, fig13_cagra_parameters.csv |
+| `curves` | run, dataset, system, k, param, recall, qps, source, total_time_us, total_time_us_std, n_timed | fig07_qps_recall.csv, fig11_topk.csv, fig12_degree.csv |
 | `stages` | dataset, system, param, recall, gpu_cl, cpu_cl, gpu_dc, cpu_dc, gpu_dm, cpu_dm, total_time_us, run, source, total_time_us_std, n_timed | fig09_search_components.csv |
 | `iterations` | panel, dataset, system, param, recall, path_total, nq, hops_per_query, path_from, run, source, n_timed | fig05_traversal_depth.csv (panel a) |
 | `build` | system, run, ct_s, avg_degree, components, peak_host_gb | tab05_06_construction.csv |
@@ -172,10 +169,9 @@ GANNS from the graph analysis that its query program prints in every search log.
 - Figure 9, BANG and GANNS: the timers exist (BANG STATS, GANNS six stage shares); how they were grouped into
   CL, DC and DM, and into GPU and CPU for BANG, is not recorded.
 - Figure 5(a), PilotANN and HNSW: no counter output.
-- CAGRA time: `my_cagra.cu` has no search timer, so there is no code for the time column of Figure 13, for CAGRA
-  QPS on MNIST8M in Figure 7, or for CAGRA in Figures 11 and 12. It returns k = 10 only, so CAGRA at K = 40, 70,
-  100 (Figure 11) has no code either. The base setting of the Figure 13 sweeps is not recorded.
-- HNSW (Figure 7 at 1, 10, 20, 40 threads; Figure 11 single thread; Tables 5 and 6): no script. PilotANN's
+- CAGRA time: `my_cagra.cu` has no search timer, so there is no code for CAGRA QPS on MNIST8M in Figure 7 or for
+  CAGRA in Figure 12.
+- HNSW (Figure 7 at 1, 10, 20, 40 threads; Figure 12 single thread; Tables 5 and 6): no script. PilotANN's
   `script/common.py` has a Faiss `IndexHNSWFlat` build (M = n_neighbors / 2, efConstruction 80) and hnswlib and
   Faiss search paths, but it samples 1,024 queries, while the HNSW recall values of the paper are multiples of
   1e-5 (10,000 queries x 10 neighbors). Nothing links the HNSW results to it.

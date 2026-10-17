@@ -1,6 +1,6 @@
 """Figure 13: Recall@10 and QPS of CAGRA on SIFT1M when one parameter varies.
 
-Input: results/fig13_cagra_parameters.csv (time_us: search time of 10,000 queries).
+Input: results/fig13_cagra_parameters.csv (time_us: search kernel time of 10,000 queries).
 Output: fig13_<parameter>.pdf for search_width, internal_topk, degree and team_size.
 """
 import logging

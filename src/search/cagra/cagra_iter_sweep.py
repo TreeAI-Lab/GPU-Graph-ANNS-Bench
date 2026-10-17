@@ -3,8 +3,9 @@
 
 Loads the index once (rebuilding it with the dataset if it is graph-only, see cagra_py_common.py), takes the first
 batch of queries, and for every max_iterations value in --it-file runs the search once as an untimed warm-up and
-then TIMED_RUNS = 3 times timed. itopk_size = max(32, it rounded up to a multiple of 32); --itopk-size is not used by
-the sweep.
+then TIMED_RUNS = 3 times timed. itopk_size = max(32, k, it) rounded up to a multiple of 32, or --fixed-itopk for
+every it when it is given (Figure 13); --itopk-size is not used by the sweep. --team-size 0 lets cuVS choose the
+team size.
 Times: query H2D, cagra.search and top-k D2H with CUDA events; wall_ms is the host time around the three steps.
 Outputs in --out: sweep.tsv (per it the means over the timed runs, qps = nq / mean wall_ms, then the sample standard
 deviations kernel_ms_std and wall_ms_std and n_timed), it_batches.tsv (every run), gpu_mem_cuda.tsv,
@@ -67,6 +68,8 @@ def main():
     ap.add_argument("--k", type=int, default=10)
     ap.add_argument("--itopk-size", type=int, default=64)
     ap.add_argument("--search-width", type=int, default=1)
+    ap.add_argument("--fixed-itopk", type=int, default=0, help="itopk_size for every it; 0: itopk follows it")
+    ap.add_argument("--team-size", type=int, default=0, help="threads per distance; 0: chosen by cuVS")
     ap.add_argument("--gpu", type=int, default=0)
     ap.add_argument("--cache-dir", default="")
     ap.add_argument("--graph-degree", type=int, default=32)
@@ -119,7 +122,12 @@ def main():
         f.write(f"protocol\tfirst_batch_only_warmup1_timed{TIMED_RUNS}_mean\n")
         f.write(f"it_file\t{args.it_file}\n")
         f.write(f"n_it\t{len(its)}\n")
-        f.write("itopk_policy\tlinear_round32: itopk=max(32, ceil32(it))\n")
+        if args.fixed_itopk:
+            f.write(f"itopk_policy\tfixed: itopk={args.fixed_itopk}\n")
+        else:
+            f.write("itopk_policy\tlinear_round32: itopk=ceil32(max(32, k, it))\n")
+        f.write(f"search_width\t{args.search_width}\n")
+        f.write(f"team_size\t{args.team_size}\n")
         f.write("h2d_src\tcudaMallocHost pinned\n")
         f.write(f"graph_degree\t{args.graph_degree}\n")
         f.write(f"intermediate_graph_degree\t{args.intermediate_graph_degree}\n")
@@ -141,6 +149,7 @@ def main():
                 max_iterations=it,
                 itopk_size=itopk,
                 search_width=args.search_width,
+                team_size=args.team_size,
             )
             wall0 = time.perf_counter()
             _cuda_check(cudart.cudaEventRecord(ev["h2d0"], None))
@@ -194,7 +203,7 @@ def main():
             return h2d_ms, kernel_ms, d2h_ms, wall_ms, qps, rec
 
         for i, it in enumerate(its):
-            itopk = itopk_for_it(it, args.k)
+            itopk = args.fixed_itopk or itopk_for_it(it, args.k)
             try:
                 wh2d, wk, wd2h, ww, wq, wrec = run_once(it, itopk, "warmup")
                 timed = [run_once(it, itopk, f"timed{r + 1}") for r in range(TIMED_RUNS)]
