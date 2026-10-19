@@ -11,9 +11,9 @@ Writes
                                 CAGRA, GGNN, GANNS, SONG: nq / kernel time; BANG, PilotANN: the qps column
                                 (nq / wall time of the whole search); excluded = song_noise_filter for the SONG
                                 points that Figure 7 leaves out (song_noise_filter below), empty otherwise
-  <root>/fig10.tsv              system, dataset, time_us_per_10k: time per 10,000 queries of the fastest plotted
-                                point with Recall@10 >= 0.9, for the six systems on DEEP1M, DEEP10M, DEEP100M
-                                (empty: no point reaches 0.9 or no run)
+  <root>/fig10.tsv              system, dataset, time_us_per_10k, status: time per 10,000 queries of the fastest
+                                plotted point with Recall@10 >= FIG10_RECALL, for the six systems on DEEP1M,
+                                DEEP10M, DEEP100M (empty: no run, or status below_target when no point reaches it)
 Usage: python summarize.py --root $OUT_DIR/qps_recall
 """
 import argparse
@@ -30,6 +30,7 @@ SYSTEM = {"cagra": "CAGRA", "ggnn": "GGNN", "ganns": "GANNS", "song": "SONG", "b
 PARAM = {"cagra": "it", "ggnn": "it", "ganns": "it", "song": "it", "bang": "L", "pilotann": "ef"}
 MIN_RECALL = 0.6  # lowest recall plotted in Figure 7
 DIP_FRAC, DIP_RECALL_MAX = 0.8, 0.9
+FIG10_RECALL = 0.95  # Figure 10 reads each curve at this Recall@10
 
 
 def gpu_rows(root: Path, ds: str, algo: str) -> List[Dict[str, str]]:
@@ -167,11 +168,12 @@ def main() -> None:
     fig10 = []
     for algo in ("song", "ggnn", "ganns", "cagra", "bang", "pilotann"):
         for ds in ("deep1M", "deep10M", "deep100M"):
-            qps = [float(p["qps"]) for p in points if p["dataset"] == ds and p["system"] == SYSTEM[algo]
-                   and not p["excluded"] and float(p["recall_at_10"]) >= 0.9]
+            curve = [p for p in points if p["dataset"] == ds and p["system"] == SYSTEM[algo] and not p["excluded"]]
+            qps = [float(p["qps"]) for p in curve if float(p["recall_at_10"]) >= FIG10_RECALL]
             t = f"{1e4 / max(qps) * 1e6:.0f}" if qps else ""
-            fig10.append({"system": SYSTEM[algo], "dataset": ds, "time_us_per_10k": t})
-    write(root / "fig10.tsv", ["system", "dataset", "time_us_per_10k"], fig10)
+            status = "below_target" if curve and not qps else ""
+            fig10.append({"system": SYSTEM[algo], "dataset": ds, "time_us_per_10k": t, "status": status})
+    write(root / "fig10.tsv", ["system", "dataset", "time_us_per_10k", "status"], fig10)
 
 
 if __name__ == "__main__":

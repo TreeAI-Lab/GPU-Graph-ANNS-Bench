@@ -1,6 +1,7 @@
-"""Figure 10: QPS at 90% Recall@10 on DEEP1M, DEEP10M and DEEP100M. A triangle marks a build that ran out of memory.
+"""Figure 10: QPS at 95% Recall@10 on DEEP1M, DEEP10M and DEEP100M. A triangle marks a build that ran out of memory.
 
-Input: results/fig10_scalability.csv (kernel time per 10,000 queries). Output: fig10_scalability.pdf.
+Input: results/fig10_scalability.csv (kernel time per 10,000 queries; status below_target marks a curve that does not
+reach the target recall, drawn as a label). Output: fig10_scalability.pdf.
 """
 import logging
 import os
@@ -17,12 +18,14 @@ DATASETS = [('deep1M', 'DEEP1M'), ('deep10M', 'DEEP10M'), ('deep100M', 'DEEP100M
 COLORS = [(244, 241, 222), (223, 122, 94), (60, 64, 91)]
 BAR_W = 0.26
 OOM = dict(marker='v', markersize=18, color='yellow', markeredgecolor='black', markeredgewidth=1)
+TARGET = 0.95  # recall at which results/fig10_scalability.csv reads the curves
 
 
 def main() -> None:
     args = style.parse_args(__doc__.splitlines()[0])
     d = style.read(args, 'fig10_scalability.csv')
     d['qps'] = (1e4 / (d['time_us_per_10k'] / 1e6)).fillna(0)
+    d['status'] = d['status'].fillna('') if 'status' in d else ''
     systems = list(d['system'].unique())
     x_idx = range(len(systems))
     plt.figure(figsize=(8, 6))
@@ -30,9 +33,12 @@ def main() -> None:
         sub = d[d['dataset'] == ds]
         bars = plt.bar([x + i * BAR_W for x in x_idx], sub['qps'], width=BAR_W,
                        color=tuple(c / 255 for c in COLORS[i]), edgecolor='black', linewidth=2.25, label=name)
-        for bar, qps in zip(bars, sub['qps']):
-            if qps == 0:  # out of memory: arrow from 1e4 down and a triangle above it
-                xp = bar.get_x() + bar.get_width() / 2
+        for bar, qps, status in zip(bars, sub['qps'], sub['status']):
+            xp = bar.get_x() + bar.get_width() / 2
+            if qps == 0 and status == 'below_target':  # the curve exists but does not reach TARGET
+                plt.text(xp, 1.5e2, f'<{TARGET:.0%}', rotation=90, ha='center', va='bottom', color='red',
+                         fontdict={'family': 'Times New Roman'})
+            elif qps == 0:  # out of memory: arrow from 1e4 down and a triangle above it
                 plt.arrow(xp, 1e4, 0, -9.8e3, head_width=0.05, head_length=50, fc='red', ec='red', linewidth=4)
                 plt.plot(xp, 2e4, **OOM)
     plt.ylabel('QPS', fontdict={'family': 'Times New Roman'})

@@ -56,7 +56,7 @@ bash src/graph_tools/build.sh           # edge statistics, CAGRA graph conversio
 | Figure 7 | QPS and Recall@10 on eight datasets | `qps_recall/`, `nongraph_baselines/`, `original/` | `fig07_qps_recall.py` |
 | Figure 8 | batch size | `batch_size/` | `fig08_batch_size.py` |
 | Figure 9 | time per search stage | `original/` | `fig09_search_components.py` |
-| Figure 10 | QPS at 90% Recall@10 on DEEP1M, DEEP10M, DEEP100M | `qps_recall/`, `original/` | `fig10_scalability.py` |
+| Figure 10 | QPS at 95% Recall@10 on DEEP1M, DEEP10M, DEEP100M | `qps_recall/`, `original/` | `fig10_scalability.py` |
 | Figure 11 | Recall@K for K = 10, 40, 70, 100 | `topk_degree/`, `qps_recall/`, `original/` | `fig11_topk.py` |
 | Figure 12 | maximum degree 64 and 128 | `original/`, `topk_degree/` | `fig12_degree.py` |
 | Figure 13 | CAGRA parameters | `cagra_parameters/` | `fig13_cagra_parameters.py` |

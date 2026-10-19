@@ -25,7 +25,7 @@ ignored. A row with a non-empty `excluded` column is not plotted.
 | `fig07_qps_recall.py` | 7 | `fig07_qps_recall.csv` | dataset, system, recall_at_10, qps, excluded |
 | `fig08_batch_size.py` | 8 | `fig08_batch_size.csv` | system, batch_size, qps |
 | `fig09_search_components.py` | 9 | `fig09_search_components.csv` | dataset, system, gpu_cl, cpu_cl, gpu_dc, cpu_dc, gpu_dm, cpu_dm (shares), total_time_us |
-| `fig10_scalability.py` | 10 | `fig10_scalability.csv` | system, dataset, time_us_per_10k (empty: out of memory) |
+| `fig10_scalability.py` | 10 | `fig10_scalability.csv` | system, dataset, time_us_per_10k, status (time empty: out of memory, or with status below_target: the curve does not reach 95% Recall@10) |
 | `fig11_topk.py` | 11 | `fig11_topk.csv` | k, system, recall, qps |
 | `fig12_degree.py` | 12 | `fig12_degree.csv` | degree, system, recall, qps |
 | `fig13_cagra_parameters.py` | 13 | `fig13_cagra_parameters.csv` | parameter, value, recall_at_10, time_us (kernel time of 10,000 queries) |
