@@ -9,7 +9,7 @@ compute in FP32 (`src/fp16/README.md`).
 
 ## Platform
 
-All measurements of this folder ran on one NVIDIA A10 24GB in a full virtual machine with the GPU passed through;
+All measurements of this folder ran on an NVIDIA A10 24GB in a full virtual machine with the GPU passed through;
 the other experiments of the paper ran on an A800 80GB PCIe. The NVIDIA driver restricts the performance counters
 to administrators (`RmProfilingAdminOnly=1`), so Nsight Compute must run as root with `CAP_SYS_ADMIN`, which a
 container usually lacks. `platform/run_smoke.sh` checks this. L2 hit rate, occupancy and GPU DRAM throughput depend
@@ -87,16 +87,19 @@ points whose QPS standard deviation over the three timed searches exceeds 10% of
 QPS, and the regular expression of the main kernel. For SONG, GGNN, GANNS and CAGRA the operating point is the
 setting with the highest QPS among those with Recall@10 >= 0.95 in the Figure 7 sweep; CAGRA uses itopk = it rounded
 up to a multiple of 32. For BANG it is the first L of the `bang_sweep.sh` sweep (step 8) with Recall@10 >= 0.95,
-measured on the A10: L = 50 on DEEP1M (0.9601; L = 42 gives 0.9497) and L = 66 on GIST (0.9519). PilotANN searches
-the index of Figure 7, so its operating point is the ef with the highest QPS among those with Recall@10 >= 0.95 in
-the Figure 7 sweep: ef = 20 on DEEP1M (0.9502) and ef = 100 on GIST (0.9521). `profile_pilotann.sh` stops if the
-A10 run of that ef falls below 0.95; the next candidates of Figure 7 are ef = 24 on DEEP1M (0.9532) and ef = 108 on
-GIST (0.9521).
+measured on the A10: L = 50 on DEEP1M (0.9601; L = 42 gives 0.9497) and L = 66 on GIST (0.9519). PilotANN runs the
+build without kernel statistics (Prerequisites), which reaches a lower Recall@10 than the default build of Figure 7
+at the same ef: on the same GIST index, ef = 100 gives 0.9414 without the statistics and 0.9518 with them. Its
+operating point is therefore the first ef of the Figure 7 values with Recall@10 >= 0.95 in a sweep of this build on
+the A10: ef = 32 on DEEP1M (0.9501; ef = 28 gives 0.9499) and ef = 144 on GIST (0.9563; ef = 100 to 128 give 0.941).
+The sweep is `IT_LIST="16 20 24 28 32" bash experiments/profiling/run_point.sh deep1M pilotann <out dir>`, and the
+same with `IT_LIST="84 92 100 108 116 128 144"` on GIST. `profile_pilotann.sh` stops if the run of that ef falls
+below 0.95.
 
 | Dataset | SONG | GGNN | GANNS | CAGRA | BANG | PilotANN |
 |---|---|---|---|---|---|---|
-| DEEP1M | 112 | 76 | 112 | 48 | 50 | 20 |
-| GIST | 84 | 152 | 80 | 80 | 66 | 100 |
+| DEEP1M | 112 | 76 | 112 | 48 | 50 | 32 |
+| GIST | 84 | 152 | 80 | 80 | 66 | 144 |
 
 `run_point.sh` runs the operating point with the Figure 7 search parameters. SONG, GGNN, GANNS and CAGRA search the
 first batch once as an untimed warm-up and then three times timed, so their main kernel is launched four times;
@@ -187,7 +190,7 @@ All under `$OUT_DIR/profiling/`.
 ## Notes
 
 - QPS is `nq / kernel_ms` in Table 10 and Figure 14, the kernel-only measure of Figure 7. The QPS of BANG in
-  `points.tsv` is the wall-clock value that BANG prints, and that of PilotANN the wall-clock value of Figure 7.
+  `points.tsv` is the wall-clock value that BANG prints, and that of PilotANN the wall-clock value of its A10 sweep.
 - The clocks are not locked because the measurements should reflect normal use. Under a sustained load the 150 W
   limit of the A10 lowers the SM clock, so every measurement starts from an idle GPU: 3 s before each Nsight
   Compute pass, 2 s before each Table 10 run, 0.5 s before each iteration count of a curve (before its warm-up
