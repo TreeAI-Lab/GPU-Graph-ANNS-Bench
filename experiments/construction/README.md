@@ -3,7 +3,8 @@
 Table 7 compares what each builder spends to reach the same search quality. Every graph of SONG, GGNN, GANNS,
 CAGRA, PilotANN, HNSW and Vamana is built with the smallest parameters whose graph reaches Recall@10 = 0.9 within a
 budget B of distance computations per query, both measured with the common searcher (`src/unified_search`) from
-shared entry points, so that the builders are compared at equal recall and nearly equal search work. The table
+shared entry points. CAGRA must in addition reach 95% of the GPU QPS of GANNS, so that the builders are compared at
+equal recall and similar QPS. The table
 reports the construction time (mean and standard deviation of three builds), average degree, connected components,
 peak host and GPU memory, and the QPS of the GPU version of the common searcher at Recall@10 = 0.9.
 
@@ -37,6 +38,9 @@ SYSTEMS=song bash experiments/construction/run_timing.sh
 
 # 3. QPS of the common searcher on the selected configurations
 bash experiments/construction/run_gpu_qps.sh
+
+# 4. CAGRA at a comparable QPS (optional: its outcome is the CAGRA rows of selected_configs.tsv; needs step 3)
+bash experiments/construction/select_cagra_qps.sh
 ```
 
 For the paper, step 2 timed the six other systems first and SONG afterwards; both commands add to the same tables.
@@ -63,6 +67,13 @@ For each builder and dataset the selection takes the smallest degree parameter t
 at that degree, the smallest effort parameter that still reaches it. The degree is not equalized across builders;
 it is reported in the table.
 
+For CAGRA this rule gives sparse graphs (degree 8 to 16) whose GPU QPS at the point is only 0.39 to 0.92 of that of
+GANNS, while the other builders stay within a factor of 1.43 of each other. Step 4 (`select_cagra_qps.sh`) therefore
+selects CAGRA again on the timing machine: in increasing order of the degree, and of `NITER` 5, 10, 15 and 20 at
+each degree, the first setting within B whose GPU QPS at Recall@10 = 0.9 reaches 95% of that of GANNS in
+`gpu_qps.tsv`. `cagra_qps_selection.tsv` lists the 44 settings measured for the paper and marks the four selected
+ones; the selected CAGRA settings reach 0.96 to 0.99 of the QPS of GANNS.
+
 | System | Degree parameter | Effort parameters |
 |---|---|---|
 | SONG | `SD` (with `SHIFT` the smallest that fits `2*SD+1`) | `BUDGET` |
@@ -84,13 +95,14 @@ configurations, columns as in `sweep_trials.tsv` below). Configurations that fai
 fails an assertion in Faiss.
 
 `selected_configs.tsv` has the columns `dataset B system build_args ndist_at_r90 fallback_args`. `ndist_at_r90` is
-the value found in the parameter search. Configurations less than 1.5% below B carry `fallback_args`, a configuration of
+the value found in the parameter search, for CAGRA the value of step 4. Configurations less than 1.5% below B carry `fallback_args`, a configuration of
 the parameter search with more margin, which step 2 uses if the rebuilt graph exceeds B; `-` means none.
 
 ## Outputs
 
 Graphs go to `$INDEX_DIR/<dataset>/<system>/<tag><suffix>/` (`src/build/README.md`): `_sweep` for the parameter
-search, `_verify` and `_rep1` to `_rep3` for step 2 (graph files deleted, logs and tables kept), `_qps` for step 3.
+search, `_verify` and `_rep1` to `_rep3` for step 2 (graph files deleted, logs and tables kept), `_qps` for step 3,
+`_qsel` for step 4 (graph files deleted after the sweep).
 Tables and logs go to `$OUT_DIR/construction/`.
 
 `sweep_trials.tsv`, one row per configuration of the grid:
@@ -125,6 +137,10 @@ at Recall@10 = 0.9 and `qps_n_timed` the number of timed passes behind it.
 ndist_at_r90_gpu qps_cpu_at_r90 qps_gpu_at_r90 gpu_over_cpu n_timed_cpu n_timed_gpu`; `qps_gpu_at_r90` is the QPS
 column of Table 7, and the last two columns are the numbers of timed passes per L of the two versions.
 Table 7 leaves out PilotANN on NYTimes and GloVe200, which the scripts still build.
+
+`cagra_qps/<dataset>_<tag>.gpu.tsv` holds the GPU sweep of each CAGRA candidate of step 4, and
+`cagra_qps_selection.tsv` one row per candidate: `dataset B qps_target build_args ndist_at_r90 qps_gpu_at_r90
+within_B meets_target selected`, where `qps_target` is 95% of the GPU QPS of GANNS.
 
 ## Notes
 
