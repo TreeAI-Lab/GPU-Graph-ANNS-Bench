@@ -1,0 +1,256 @@
+diff --git a/apps/search_disk_index.cpp b/apps/search_disk_index.cpp
+index 6b0793d..add1a10 100644
+--- a/apps/search_disk_index.cpp
++++ b/apps/search_disk_index.cpp
+@@ -177,15 +177,23 @@ int search_disk_index(diskann::Metric &metric, const std::string &index_path_pre
+     diskann::cout.precision(2);
+ 
+     std::string recall_string = "Recall@" + std::to_string(recall_at);
+-    diskann::cout << std::setw(6) << "L" << std::setw(12) << "Beamwidth" << std::setw(16) << "QPS" << std::setw(16)
+-                  << "Mean Latency" << std::setw(16) << "99.9 Latency" << std::setw(16) << "Mean IOs" << std::setw(16)
+-                  << "Mean IO (us)" << std::setw(16) << "CPU (s)";
+-    if (calc_recall_flag)
+-    {
+-        diskann::cout << std::setw(16) << recall_string << std::endl;
+-    }
+-    else
+-        diskann::cout << std::endl;
++    diskann::cout << std::setw(6) << "L"
++              << std::setw(12) << "Beamwidth"
++              << std::setw(12) << "QPS"
++              << std::setw(16) << "Mean Latency"
++              << std::setw(16) << "99.9 Latency"
++              << std::setw(16) << "Mean IOs"
++              << std::setw(16) << "Mean IO (us)"
++              << std::setw(16) << "CPU (s)"
++              << std::setw(16) << "fetch_time"
++              << std::setw(16) << "calc_time"
++              << std::setw(16) << "update_time"
++              << std::setw(16) << "n_hops"
++                << std::setw(16) << "n_cmps"
++                << std::setw(16) << "path_length"
++                << std::setw(16) << "calc_count"
++              << std::setw(16) << "Recall@10"
++              << std::endl;
+     diskann::cout << "=================================================================="
+                      "================================================================="
+                   << std::endl;
+@@ -272,6 +280,20 @@ int search_disk_index(diskann::Metric &metric, const std::string &index_path_pre
+ 
+         auto mean_io_us = diskann::get_mean_stats<float>(stats, query_num,
+                                                          [](const diskann::QueryStats &stats) { return stats.io_us; });
++        auto fetch_time = diskann::get_mean_stats<float>(stats, query_num,
++                                                         [](const diskann::QueryStats &stats) { return stats.fetch_time; });
++        auto calc_time  = diskann::get_mean_stats<float>(stats, query_num,
++                                                         [](const diskann::QueryStats &stats) { return stats.calc_time; });
++        auto update_time = diskann::get_mean_stats<float>(stats, query_num,
++                                                         [](const diskann::QueryStats &stats) { return stats.update_time; });
++        auto n_hops = diskann::get_mean_stats<float>(stats, query_num,
++                                                         [](const diskann::QueryStats &stats) { return stats.n_hops; });
++        auto n_cmps = diskann::get_mean_stats<float>(stats, query_num,
++                                                         [](const diskann::QueryStats &stats) { return stats.n_cmps; });
++        auto path_length = diskann::get_mean_stats<float>(stats, query_num,
++                                                         [](const diskann::QueryStats &stats) { return stats.path_length; });
++        auto calc_count = diskann::get_mean_stats<float>(stats, query_num,
++                                                         [](const diskann::QueryStats &stats) { return stats.calc_count; });
+ 
+         double recall = 0;
+         if (calc_recall_flag)
+@@ -283,7 +305,9 @@ int search_disk_index(diskann::Metric &metric, const std::string &index_path_pre
+ 
+         diskann::cout << std::setw(6) << L << std::setw(12) << optimized_beamwidth << std::setw(16) << qps
+                       << std::setw(16) << mean_latency << std::setw(16) << latency_999 << std::setw(16) << mean_ios
+-                      << std::setw(16) << mean_io_us << std::setw(16) << mean_cpuus;
++                      << std::setw(16) << mean_io_us << std::setw(16) << mean_cpuus << std::setw(16)<< fetch_time
++                      << std::setw(16)<< calc_time << std::setw(16)<< update_time << std::setw(16) << n_hops
++                      << std::setw(16)<< n_cmps << std::setw(16) << path_length<< std::setw(16) << calc_count;
+         if (calc_recall_flag)
+         {
+             diskann::cout << std::setw(16) << recall << std::endl;
+diff --git a/include/percentile_stats.h b/include/percentile_stats.h
+index 7932575..f9a4e67 100644
+--- a/include/percentile_stats.h
++++ b/include/percentile_stats.h
+@@ -33,6 +33,11 @@ struct QueryStats
+     unsigned n_cmps = 0;       // # cmps
+     unsigned n_cache_hits = 0; // # cache_hits
+     unsigned n_hops = 0;       // # search hops
++    unsigned long long calc_count = 0;
++    unsigned long long path_length = 0;
++    double fetch_time = 0.0;
++    double calc_time = 0.0;
++    double update_time = 0.0;
+ };
+ 
+ template <typename T>
+diff --git a/src/pq.cpp b/src/pq.cpp
+index d2b545c..aa207b8 100644
+--- a/src/pq.cpp
++++ b/src/pq.cpp
+@@ -553,6 +553,13 @@ int generate_pq_pivots(const float *const passed_train_data, size_t num_train, u
+     cumul_bytes[3] = cumul_bytes[2] + diskann::save_bin<uint32_t>(pq_pivots_path.c_str(), chunk_offsets.data(),
+                                                                   chunk_offsets.size(), 1, cumul_bytes[2]);
+     diskann::save_bin<size_t>(pq_pivots_path.c_str(), cumul_bytes.data(), cumul_bytes.size(), 1, 0);
++    std::string pq_file_myself = pq_pivots_path + "_myself";
++    std::string centroid_file_myself = pq_pivots_path + "_myself_centroid.bin";
++    std::string chunkoffset_file_myself = pq_pivots_path + "_myself_chunk_offsets.bin";
++
++    diskann::save_bin<float>(pq_file_myself.c_str(), full_pivot_data.get(), num_centers, dim, 0);
++    diskann::save_bin<float>(centroid_file_myself.c_str(), centroid.get(), dim, 1, 0);
++    diskann::save_bin<uint32_t>(chunkoffset_file_myself.c_str(), chunk_offsets.data(), chunk_offsets.size(), 1, 0);
+ 
+     diskann::cout << "Saved pq pivot data to " << pq_pivots_path << " of size " << cumul_bytes[cumul_bytes.size() - 1]
+                   << "B." << std::endl;
+diff --git a/src/pq_flash_index.cpp b/src/pq_flash_index.cpp
+index d9ad506..2938637 100644
+--- a/src/pq_flash_index.cpp
++++ b/src/pq_flash_index.cpp
+@@ -1325,6 +1325,7 @@ void PQFlashIndex<T, LabelT>::cached_beam_search(const T *query1, const uint64_t
+     }
+ 
+     // pointers to buffers for data
++    auto start = std::chrono::steady_clock::now();
+     T *data_buf = query_scratch->coord_scratch;
+     _mm_prefetch((char *)data_buf, _MM_HINT_T1);
+ 
+@@ -1351,6 +1352,9 @@ void PQFlashIndex<T, LabelT>::cached_beam_search(const T *query1, const uint64_t
+         diskann::pq_dist_lookup(pq_coord_scratch, n_ids, this->_n_chunks, pq_dists, dists_out);
+     };
+     Timer query_timer, io_timer, cpu_timer;
++    auto end = std::chrono::steady_clock::now();
++    if (stats != nullptr)
++        stats->calc_time += std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+ 
+     tsl::robin_set<uint64_t> &visited = query_scratch->visited;
+     NeighborPriorityQueue &retset = query_scratch->retset;
+@@ -1424,6 +1428,7 @@ void PQFlashIndex<T, LabelT>::cached_beam_search(const T *query1, const uint64_t
+         sector_scratch_idx = 0;
+         // find new beam
+         uint32_t num_seen = 0;
++        start = std::chrono::steady_clock::now();
+         while (retset.has_unexpanded_node() && frontier.size() < beam_width && num_seen < beam_width)
+         {
+             auto nbr = retset.closest_unexpanded();
+@@ -1482,12 +1487,17 @@ void PQFlashIndex<T, LabelT>::cached_beam_search(const T *query1, const uint64_t
+             }
+         }
+ 
++        end = std::chrono::steady_clock::now();
++        if (stats != nullptr)
++            stats->fetch_time += std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+         // process cached nhoods
+         for (auto &cached_nhood : cached_nhoods)
+         {
++            stats->path_length++;
+             auto global_cache_iter = _coord_cache.find(cached_nhood.first);
+             T *node_fp_coords_copy = global_cache_iter->second;
+             float cur_expanded_dist;
++            start = std::chrono::steady_clock::now();
+             if (!_use_disk_index_pq)
+             {
+                 cur_expanded_dist = _dist_cmp->compare(aligned_query_T, node_fp_coords_copy, (uint32_t)_aligned_dim);
+@@ -1500,14 +1510,28 @@ void PQFlashIndex<T, LabelT>::cached_beam_search(const T *query1, const uint64_t
+                     cur_expanded_dist = _disk_pq_table.l2_distance( // disk_pq does not support OPQ yet
+                         query_float, (uint8_t *)node_fp_coords_copy);
+             }
++            end = std::chrono::steady_clock::now();
++            if (stats != nullptr)
++                stats->calc_time += std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
++
++            start = std::chrono::steady_clock::now();
+             full_retset.push_back(Neighbor((uint32_t)cached_nhood.first, cur_expanded_dist));
+ 
++            end = std::chrono::steady_clock::now();
++            if (stats != nullptr)
++                stats->update_time += std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+             uint64_t nnbrs = cached_nhood.second.first;
+             uint32_t *node_nbrs = cached_nhood.second.second;
+ 
+             // compute node_nbrs <-> query dists in PQ space
+             cpu_timer.reset();
++            start = std::chrono::steady_clock::now();
+             compute_dists(node_nbrs, nnbrs, dist_scratch);
++            end = std::chrono::steady_clock::now();
++            if(stats != nullptr)
++                stats->calc_count += nnbrs;
++            if (stats != nullptr)
++                stats->calc_time += std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+             if (stats != nullptr)
+             {
+                 stats->n_cmps += (uint32_t)nnbrs;
+@@ -1515,6 +1539,7 @@ void PQFlashIndex<T, LabelT>::cached_beam_search(const T *query1, const uint64_t
+             }
+ 
+             // process prefetched nhood
++            start = std::chrono::steady_clock::now();
+             for (uint64_t m = 0; m < nnbrs; ++m)
+             {
+                 uint32_t id = node_nbrs[m];
+@@ -1532,6 +1557,9 @@ void PQFlashIndex<T, LabelT>::cached_beam_search(const T *query1, const uint64_t
+                     retset.insert(nn);
+                 }
+             }
++            end = std::chrono::steady_clock::now();
++            if (stats != nullptr)
++                stats->update_time += std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+         }
+ #ifdef USE_BING_INFRA
+         // process each frontier nhood - compute distances to unvisited nodes
+@@ -1548,12 +1576,14 @@ void PQFlashIndex<T, LabelT>::cached_beam_search(const T *query1, const uint64_t
+         for (auto &frontier_nhood : frontier_nhoods)
+         {
+ #endif
++            stats->path_length++;
+             char *node_disk_buf = offset_to_node(frontier_nhood.second, frontier_nhood.first);
+             uint32_t *node_buf = offset_to_node_nhood(node_disk_buf);
+             uint64_t nnbrs = (uint64_t)(*node_buf);
+             T *node_fp_coords = offset_to_node_coords(node_disk_buf);
+             memcpy(data_buf, node_fp_coords, _disk_bytes_per_point);
+             float cur_expanded_dist;
++            start = std::chrono::steady_clock::now();
+             if (!_use_disk_index_pq)
+             {
+                 cur_expanded_dist = _dist_cmp->compare(aligned_query_T, data_buf, (uint32_t)_aligned_dim);
+@@ -1565,11 +1595,24 @@ void PQFlashIndex<T, LabelT>::cached_beam_search(const T *query1, const uint64_t
+                 else
+                     cur_expanded_dist = _disk_pq_table.l2_distance(query_float, (uint8_t *)data_buf);
+             }
++            end = std::chrono::steady_clock::now();
++            if (stats != nullptr)
++                stats->calc_time += std::chrono::duration_cast<std::chrono::microseconds>(  end - start).count();
++            start = std::chrono::steady_clock::now();
+             full_retset.push_back(Neighbor(frontier_nhood.first, cur_expanded_dist));
++            end = std::chrono::steady_clock::now();
++            if (stats != nullptr)
++                stats->update_time += std::chrono::duration_cast<std::chrono::microseconds>( end - start).count();
+             uint32_t *node_nbrs = (node_buf + 1);
+             // compute node_nbrs <-> query dist in PQ space
+             cpu_timer.reset();
++            start = std::chrono::steady_clock::now();
+             compute_dists(node_nbrs, nnbrs, dist_scratch);
++            end = std::chrono::steady_clock::now();
++            if(stats != nullptr)
++                stats->calc_count += nnbrs;
++            if(stats != nullptr)
++                stats->calc_time += std::chrono::duration_cast<std::chrono::microseconds>( end - start).count();
+             if (stats != nullptr)
+             {
+                 stats->n_cmps += (uint32_t)nnbrs;
+@@ -1578,6 +1621,7 @@ void PQFlashIndex<T, LabelT>::cached_beam_search(const T *query1, const uint64_t
+ 
+             cpu_timer.reset();
+             // process prefetch-ed nhood
++            start = std::chrono::steady_clock::now();
+             for (uint64_t m = 0; m < nnbrs; ++m)
+             {
+                 uint32_t id = node_nbrs[m];
+@@ -1600,6 +1644,9 @@ void PQFlashIndex<T, LabelT>::cached_beam_search(const T *query1, const uint64_t
+                     retset.insert(nn);
+                 }
+             }
++            end = std::chrono::steady_clock::now();
++            if (stats != nullptr)
++                stats->update_time += std::chrono::duration_cast<std::chrono::microseconds>( end - start).count();
+ 
+             if (stats != nullptr)
+             {

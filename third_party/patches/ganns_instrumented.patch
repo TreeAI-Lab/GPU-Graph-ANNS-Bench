@@ -1,0 +1,439 @@
+diff --git a/src/data.h b/src/data.h
+index f0f3a51..3a7f11c 100644
+--- a/src/data.h
++++ b/src/data.h
+@@ -29,13 +29,13 @@ private:
+         long long f_sz = in.tellg(); 
+         n_ = f_sz / (d_ + 1) / sizeof(int);
+ 
+-        v_ = new float[d_ * n_];
++        v_ = new float[(size_t)d_ * n_];
+     
+         in.seekg(0, std::ios::beg);
+ 
+         for (int i = 0; i < n_; i++) {
+             in.seekg(sizeof(int), std::ios::cur);
+-            in.read((char*)(v_ + i * d_), d_ * sizeof(int));
++            in.read((char*)(v_ + (size_t)i * d_), d_ * sizeof(int));
+         }
+ 
+         in.close();
+@@ -48,7 +48,7 @@ public:
+     }
+     
+     float* get_vector(int id_) const{
+-        return v_ + id_ * d_;
++        return v_ + (size_t)id_ * d_;
+     }
+ 
+     int num(){
+diff --git a/src/device_func.h b/src/device_func.h
+index 62d68fb..86537ab 100644
+--- a/src/device_func.h
++++ b/src/device_func.h
+@@ -141,8 +141,8 @@ __device__ float compute_dist(int lane_id, int id, int nbr_id, float* d) {
+ #endif
+     for (int k = 0; k + lane_id < DIM; k += 32) {
+         int dim_idx = k + lane_id;
+-        float p = d[id * DIM + dim_idx];
+-        float q = d[nbr_id * DIM + dim_idx];
++        float p = d[(size_t)id * DIM + dim_idx];
++        float q = d[(size_t)nbr_id * DIM + dim_idx];
+     
+ #if USE_DIST_L2_
+         float delta = (p - q) * (p - q);
+@@ -253,8 +253,8 @@ __device__ float compute_dist_q(int lane_id, int id, int nbr_id, float* d, float
+ #endif
+     for (int k = 0; k + lane_id < DIM; k += 32) {
+         int dim_idx = k + lane_id;
+-        float p = q_vec[id * DIM + dim_idx];
+-        float q = d[nbr_id * DIM + dim_idx];
++        float p = q_vec[(size_t)id * DIM + dim_idx];
++        float q = d[(size_t)nbr_id * DIM + dim_idx];
+     
+ #if USE_DIST_L2_
+         float delta = (p - q) * (p - q);
+diff --git a/src/kernels.h b/src/kernels.h
+index 5cfbfec..bc94bc3 100644
+--- a/src/kernels.h
++++ b/src/kernels.h
+@@ -442,6 +442,154 @@ void SearchK(float* d,
+     }
+ }
+ 
++__global__
++void SearchK_Stats(float* d, 
++    float* q,
++    int* ann,
++    int* g,
++    int n_d,
++    int n_q,
++    int s_bits,
++    int M,
++    int k,
++    int n_e,
++    unsigned long long* tb,
++    unsigned long long* cal_count,
++    unsigned long long* path_length)
++{
++    int n_warp = blockDim.x / 32;
++    int warp_id = threadIdx.x / 32;
++    int lane_id = threadIdx.x % 32;
++    int b_id = blockIdx.x;
++
++    extern __shared__ NBR sm[];
++    NBR* s_nbr = sm + warp_id * ((1 << s_bits) + M);
++    int* s_f = (int*)(sm + n_warp * ((1 << s_bits) + M)) + warp_id * ((1 << s_bits) + M);
++    
++    int id = b_id * n_warp + warp_id;
++    int* ann_seg = ann + id * k;
++    unsigned long long* tb_seg = tb + (size_t)id * 6;
++    
++    int g_f = 1;
++    int f_f = 0;
++    NBR init_value;
++    init_value.d = Max;
++    init_value.nbr = n_d;
++
++    if (id >= n_q) {
++        return;
++    }
++
++    for (int i = 0; i < ((1 << s_bits) + M + WS - 1) / WS; i++) {
++        int l_id = lane_id + WS * i;
++
++        if (l_id < (1 << s_bits) + M) {
++            s_f[l_id] = 0;
++            s_nbr[l_id] = init_value;
++        }
++    }
++
++    if (lane_id == 0) {
++        s_nbr[0].nbr = 0;
++    }
++
++    int nbr_id = 0;
++    
++    float dist = compute_dist_q(lane_id, id, nbr_id, d, q);
++    
++    if (lane_id == 0) {
++        s_nbr[0].d = dist;
++    }
++   	
++    while (g_f) {
++
++        if (lane_id == 0) {
++            s_f[f_f] = 0;
++            atomicAdd(path_length, 1ULL);
++        }
++        
++        nbr_id = s_nbr[f_f].nbr;
++        int* nbr_nbr = g + ((size_t)nbr_id << s_bits);
++
++        long long t2 = clock64();
++        for (int i = 0; i < ((1 << s_bits) + WS - 1) / WS; i++) {
++            int l_id = lane_id + WS * i;
++
++            if (l_id < (1 << s_bits)) {
++                s_nbr[M + l_id].nbr = nbr_nbr[l_id];
++                s_f[M + l_id] = 1;
++            }
++        }
++        long long t3 = clock64();
++
++        for (int i = 0; i < (1 << s_bits); i++) {
++            nbr_id = s_nbr[M + i].nbr;
++            
++            if (nbr_id >= n_d) {
++                s_nbr[M + i].d = Max;
++                continue;
++            }
++            if (lane_id == 0) {
++                atomicAdd(cal_count, 1ULL);
++            }
++            
++            dist = compute_dist_q(lane_id, id, nbr_id, d, q);
++                
++            if (lane_id == 0) {
++                s_nbr[M + i].d = dist;
++            }
++        }
++        
++        long long t4 = clock64();
++        binary_search(lane_id, (1 << s_bits), M, s_nbr);
++        long long t5 = clock64();
++
++        bitonic_sort(lane_id, (1 << s_bits), s_nbr + M, false);
++        long long t6 = clock64();
++        
++        bitonic_merge_triplet(lane_id, (1 << s_bits), M, s_nbr, s_f);
++        long long t1 = clock64();
++        
++        for (int i = 0; i < (n_e + WS - 1) / WS; i++) {
++            int l_id = lane_id + WS * i;
++            int f = 0;
++
++            if(l_id < n_e){
++                f = s_f[l_id];
++            }
++
++            f_f = __ballot_sync(FULL_MASK, f);
++
++            if(f_f != 0){
++                f_f = WS * i + __ffs(f_f) - 1;
++                break;
++            }else if(i == (n_e + WS - 1) / WS - 1){
++                g_f = 0;
++            }
++        }
++        long long t7 = clock64();
++
++        // stages of the original GANNS clocks: 1 pick the next candidate, 2 read its neighbor list,
++        // 3 distances, 4 drop visited neighbors, 5 sort the neighbors, 6 merge them into the candidates
++        if (lane_id == 0) {
++            tb_seg[0] += t7 - t1;
++            tb_seg[1] += t3 - t2;
++            tb_seg[2] += t4 - t3;
++            tb_seg[3] += t5 - t4;
++            tb_seg[4] += t6 - t5;
++            tb_seg[5] += t1 - t6;
++        }
++    }
++
++    for (int i = 0; i < (k + WS - 1) / WS; i++) {
++        int l_id = lane_id + WS * i;
++    
++        if (l_id < k) {
++            ann_seg[l_id] = s_nbr[l_id].nbr;
++        }
++    }
++}
++
+ __global__
+ void SearchK_H(float* d, 
+     float* q,
+diff --git a/src/main.cu b/src/main.cu
+index 97eeb3a..a0c2f82 100644
+--- a/src/main.cu
++++ b/src/main.cu
+@@ -76,6 +76,28 @@ int main(int argc,char** argv){
+         cout << "Performing queries..." << endl;
+         graph->search(query->get_vector(0), k, ann, query->num(), M, n_e);
+     
++        cout << "Recall: " << compute_recall(ann, truth, query->num(), k, k_truth) << endl;
++    } else if (op_type == "-s") {
++        // NSW search with counters and stage clocks, after the graph analysis:
++        //   -s <base> <query> <graph> <truth> <n_e> <k>
++        string base_path = argv[2];
++        string q_path = argv[3];
++        string g_path = argv[4];
++        string truth_path = argv[5];
++        int n_e = atoi(argv[6]);
++        int k = atoi(argv[7]);
++
++        int* truth = NULL;
++        int k_truth;
++        load_truth(truth, truth_path, k_truth);
++        Data* data = new Data(base_path);
++        Data* query = new Data(q_path);
++        NSW* graph = new NSW(data);
++        graph->load(g_path);
++        graph->analyze();
++
++        int* ann = NULL;
++        graph->search_stats(query->get_vector(0), k, ann, query->num(), n_e);
+         cout << "Recall: " << compute_recall(ann, truth, query->num(), k, k_truth) << endl;
+     }
+     
+diff --git a/src/nsw.h b/src/nsw.h
+index 4194cb0..137ae4e 100644
+--- a/src/nsw.h
++++ b/src/nsw.h
+@@ -63,6 +63,77 @@ public:
+         cout << "Query speed: " << (double)n_q / ((double)duration / pow(10, 6)) << " QPS" << endl;
+     }
+ 
++    // The search with counters and stage clocks. The candidate list M is the smallest power of 2 from 64 that
++    // holds n_e entries and the 1 << s_bits adjacency slots, as in the resident search of the QPS-recall runs.
++    void search_stats(float* q, int k, int* &ann, int n_q, int n_e) {
++        int M = 64;
++        while (M < n_e || M < (1 << s_bits_)) {
++            M *= 2;
++        }
++        cout << "Parameters: k = " << k << ", n_e = " << n_e << ", M = " << M << endl;
++
++        cudaMallocHost(&ann, sizeof(int) * (size_t)n_q * k);
++        unsigned long long stages[6];
++        unsigned long long cal_count = 0, path_length = 0;
++        long long query_us = 0;
++        NSWOp::SearchStats(data_->get_vector(0), q, graph_, ann, n_q, data_->num(), data_->dim(), s_bits_, k, M,
++            n_e, stages, cal_count, path_length, query_us);
++
++        unsigned long long sum = 0;
++        for (int s = 0; s < 6; s++) {
++            sum += stages[s];
++        }
++        cout << "Query speed: " << (double)n_q / ((double)query_us / pow(10, 6)) << " queries per second" << endl;
++        cout << "query time: " << query_us << " us" << endl;
++        cout << "stages percentage:";
++        for (int s = 0; s < 6; s++) {
++            cout << " " << (double)stages[s] / sum;
++        }
++        cout << endl;
++        cout << "cal_count: " << cal_count << endl;
++        cout << "path_length: " << path_length << endl;
++    }
++
++    // Average out-degree (slots holding a vertex id) and the number of weakly connected components found by a
++    // BFS over the stored edges, as in the graph analysis of the original GANNS runs.
++    void analyze() {
++        const int slots = 1 << s_bits_;
++        long long edges = 0;
++        for (size_t i = 0; i < ((size_t)n_ << s_bits_); i++) {
++            if (graph_[i] < n_) {
++                edges++;
++            }
++        }
++        vector<bool> visited(n_, false);
++        int n_comp = 0, largest = 0;
++        for (int start = 0; start < n_; start++) {
++            if (visited[start]) continue;
++            n_comp++;
++            int sz = 0;
++            queue<int> bfs;
++            bfs.push(start);
++            visited[start] = true;
++            while (!bfs.empty()) {
++                int v = bfs.front();
++                bfs.pop();
++                sz++;
++                for (int j = 0; j < slots; j++) {
++                    int u = graph_[((size_t)v << s_bits_) + j];
++                    if (u < n_ && !visited[u]) {
++                        visited[u] = true;
++                        bfs.push(u);
++                    }
++                }
++            }
++            largest = max(largest, sz);
++        }
++        cout << "Number of nodes: " << n_ << endl;
++        cout << "Maximum degree: " << slots << endl;
++        cout << "Average degree: " << (double)edges / n_ << endl;
++        cout << "Number of components: " << n_comp << endl;
++        cout << "Largest component size: " << largest << " (" << largest * 100.0 / n_ << "% of nodes)" << endl;
++    }
++
+     void build(int k, int M) override {
+         M = pow(2.0, ceil(log(M) / log(2)));
+         k_ = pow(2.0, ceil(log(k) / log(2)));
+diff --git a/src/nsw_op.h b/src/nsw_op.h
+index 30438e4..f905a0c 100644
+--- a/src/nsw_op.h
++++ b/src/nsw_op.h
+@@ -6,6 +6,8 @@
+ #include <thrust/device_ptr.h>
+ #include <thrust/sort.h>
+ #include <thrust/scan.h>
++#include <chrono>
++#include <iostream>
+ #include "type.h"
+ #include "kernels.h"
+ 
+@@ -62,7 +64,7 @@ public:
+ 		NBR* &d_nbr,
+ 		NBR* &d_local_nbr){
+ 
+-		d_d = copy_to_device<float>(h_d, n_d * d);
++		d_d = copy_to_device<float>(h_d, (size_t)n_d * d);
+ 		vector<NBR> init_nbr(n_d << s_bits, NBR(Max, n_d));
+ 		d_nbr = copy_to_device<NBR>(init_nbr.data(), n_d << s_bits);
+ 		d_local_nbr = copy_to_device<NBR>(init_nbr.data(), n_d << s_bits);
+@@ -237,8 +239,8 @@ public:
+ 		int M,
+ 		int n_e) {
+ 		
+-		float* d_d = copy_to_device<float>(h_d, n_d * d);
+-		float* d_q = copy_to_device<float>(h_q, n_q * d);
++		float* d_d = copy_to_device<float>(h_d, (size_t)n_d * d);
++		float* d_q = copy_to_device<float>(h_q, (size_t)n_q * d);
+ 		int* d_ann = allocate_device_memory<int>(n_q * k);
+ 		int* d_g = copy_to_device<int>(h_g, n_d << s_bits);
+ 
+@@ -264,6 +266,75 @@ public:
+ 		cudaFree(d_q);
+ 		cudaFree(d_d);
+ 	}
++
++	// Search with SearchK_Stats: the kernel time of the search, the six stage clocks summed over all queries,
++	// the number of distance computations (cal_count) and of expanded candidates (path_length).
++	static void SearchStats(float* h_d, 
++		float* h_q, 
++		int* h_g, 
++		int* h_ann, 
++		int n_q, 
++		int n_d, 
++		int d, 
++		int s_bits, 
++		int k, 
++		int M,
++		int n_e,
++		unsigned long long* stages,
++		unsigned long long& cal_count,
++		unsigned long long& path_length,
++		long long& query_us) {
++		float* d_d = copy_to_device<float>(h_d, (size_t)n_d * d);
++		float* d_q = copy_to_device<float>(h_q, (size_t)n_q * d);
++		int* d_ann = allocate_device_memory<int>((size_t)n_q * k);
++		int* d_g = copy_to_device<int>(h_g, (size_t)n_d << s_bits);
++		unsigned long long* d_tb = allocate_device_memory<unsigned long long>((size_t)n_q * 6);
++		unsigned long long* d_cnt = allocate_device_memory<unsigned long long>(2);
++		cudaMemset(d_tb, 0, (size_t)n_q * 6 * sizeof(unsigned long long));
++		cudaMemset(d_cnt, 0, 2 * sizeof(unsigned long long));
++
++		int block_dim = 256;
++		int grid_dim = (n_q + block_dim / WS - 1) / (block_dim / WS);
++		int shmem = ((1 << s_bits) + M) * (block_dim / WS) * (sizeof(NBR) + sizeof(int));
++		cudaFuncSetAttribute(SearchK_Stats, cudaFuncAttributeMaxDynamicSharedMemorySize, shmem);
++
++		auto t1 = std::chrono::steady_clock::now();
++		SearchK_Stats<<<grid_dim, block_dim, shmem>>>(d_d, d_q, d_ann, d_g, n_d, n_q, s_bits, M, k, n_e,
++			d_tb, d_cnt, d_cnt + 1);
++		cudaError_t err = cudaDeviceSynchronize();
++		auto t2 = std::chrono::steady_clock::now();
++		if (err == cudaSuccess) {
++			err = cudaGetLastError();
++		}
++		if (err != cudaSuccess) {
++			std::cerr << "SearchK_Stats failed: " << cudaGetErrorString(err) << std::endl;
++			exit(1);
++		}
++		query_us = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
++
++		unsigned long long* h_tb = copy_to_host<unsigned long long>(d_tb, (size_t)n_q * 6);
++		for (int s = 0; s < 6; s++) {
++			stages[s] = 0;
++		}
++		for (size_t i = 0; i < (size_t)n_q; i++) {
++			for (int s = 0; s < 6; s++) {
++				stages[s] += h_tb[i * 6 + s];
++			}
++		}
++		unsigned long long h_cnt[2];
++		cudaMemcpy(h_cnt, d_cnt, 2 * sizeof(unsigned long long), cudaMemcpyDeviceToHost);
++		cal_count = h_cnt[0];
++		path_length = h_cnt[1];
++		cudaMemcpy(h_ann, d_ann, (size_t)n_q * k * sizeof(int), cudaMemcpyDeviceToHost);
++
++		cudaFreeHost(h_tb);
++		cudaFree(d_cnt);
++		cudaFree(d_tb);
++		cudaFree(d_g);
++		cudaFree(d_ann);
++		cudaFree(d_q);
++		cudaFree(d_d);
++	}
+ };
+ 
+ #endif
+\ No newline at end of file
