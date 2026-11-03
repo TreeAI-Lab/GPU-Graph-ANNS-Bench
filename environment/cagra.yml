@@ -1,0 +1,10 @@
+# CAGRA from the official cuVS 25.02.01 packages
+name: cagra
+channels: [rapidsai, conda-forge]
+dependencies:
+  - python=3.12
+  - cuda-version=12.4
+  - libcuvs=25.02.01
+  - cuvs=25.02.01
+  - numpy
+  - h5py
