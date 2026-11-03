@@ -1,0 +1,428 @@
+diff -ruN a/astar_accelerator.h b/astar_accelerator.h
+--- a/astar_accelerator.h
++++ b/astar_accelerator.h
+@@ -14,7 +14,7 @@
+ #include"bloomfilter.h"
+ #include"vanilla_list.h"
+ 
+-#define TOPK 10
++#define TOPK 64
+ 
+ template<class A,class B>
+ struct KernelPair{
+diff -ruN a/config.h b/config.h
+--- a/config.h
++++ b/config.h
+@@ -19,10 +19,14 @@
+ #define ACC_BATCH_SIZE 1000000
+ 
+ //for GPU
+-#define FIXED_DEGREE 31
+-#define FIXED_DEGREE_SHIFT 5
++#ifndef FIXED_DEGREE
++#define FIXED_DEGREE 32
++#endif
++#ifndef FIXED_DEGREE_SHIFT
++#define FIXED_DEGREE_SHIFT 6
++#endif
+ 
+ //for CPU construction
+-#define SEARCH_DEGREE 15
+-#define CONSTRUCT_SEARCH_BUDGET 150
++#define SEARCH_DEGREE 16
++#define CONSTRUCT_SEARCH_BUDGET 160
+ 
+diff -ruN a/smmh2.h b/smmh2.h
+--- a/smmh2.h
++++ b/smmh2.h
+@@ -122,7 +122,7 @@
+ 	smmh[idx] = smmh[--max_size];
+ 	int Y = idx;
+ 	while(1){
+-		adjust_sibling(smmh,Y,max_size);
++		Y = adjust_sibling(smmh,Y,max_size);
+ 		int X = adjust_grandchild(smmh,Y,max_size);
+ 		if(X == Y)
+ 			break;
+diff -ruN a/warp_astar_accelerator.h b/warp_astar_accelerator.h
+--- a/warp_astar_accelerator.h
++++ b/warp_astar_accelerator.h
+@@ -31,6 +31,19 @@
+ 
+ #define __ENABLE_MEASURE
+ 
++// With SONG_FP16 the base and query vectors in device memory are __half; each element is converted to float
++// when read, so distances are computed and accumulated in FP32. The graph is unchanged.
++#ifdef SONG_FP16
++#include <cuda_fp16.h>
++typedef __half vec_t;
++__device__ __forceinline__ value_t vec_load(const vec_t* p, size_t i) { return __half2float(p[i]); }
++#else
++typedef value_t vec_t;
++__device__ __forceinline__ value_t vec_load(const vec_t* p, size_t i) { return p[i]; }
++#endif
++
++
++
+ struct Measure{
+ 	unsigned long long stage1 = 0;
+ 	unsigned long long stage2 = 0;
+@@ -38,20 +51,22 @@
+ };
+ 
+ __global__
+-void warp_independent_search_kernel(value_t* d_data,value_t* d_query,idx_t* d_result,idx_t* d_graph,int num_query,int vertex_offset_shift
++void warp_independent_search_kernel(vec_t* d_data,vec_t* d_query,idx_t* d_result,idx_t* d_graph,int num_query,int vertex_offset_shift
+ #ifdef __ENABLE_MEASURE
+ ,Measure* measure
+ #endif
+-){
+-	const int QUEUE_SIZE = TOPK;
+-	#define DIM 960
++,unsigned long long* calculate_cnt, unsigned long long* path_len, int max_iterations){
++	const int QUEUE_SIZE = max_iterations - 1;
++	#ifndef DIM
++	#define DIM 96
++	#endif
+     int bid = blockIdx.x * N_MULTIQUERY;
+ 	const int step = N_THREAD_IN_WARP;
+     int tid = threadIdx.x;
+ 	int cid = tid / CRITICAL_STEP;
+ 	int subtid = tid % CRITICAL_STEP;
+-#define BLOOM_FILTER_BIT64 8
+-#define BLOOM_FILTER_BIT_SHIFT 3
++#define BLOOM_FILTER_BIT64 128
++#define BLOOM_FILTER_BIT_SHIFT 7
+ #define BLOOM_FILTER_NUM_HASH 7
+ 
+ #ifndef __ENABLE_VISITED_DEL
+@@ -85,7 +100,7 @@
+ 	if(subtid == 0){
+ 		dist_list = new value_t[FIXED_DEGREE * N_MULTIPROBE];
+ 		q= new KernelPair<dist_t,idx_t>[QUEUE_SIZE + 2];
+-		topk = new KernelPair<dist_t,idx_t>[TOPK + 1];
++		topk = new KernelPair<dist_t,idx_t>[QUEUE_SIZE + 1];
+     	//pbf = new BloomFilter<64,6,7>();
+ #ifdef __ENABLE_FIXHASH
+ 		pbf = new FixHash<int,HASH_TABLE_CAPACITY>();
+@@ -101,13 +116,16 @@
+ 	int topk_heap_size;
+ 
+     __shared__ value_t query_point[N_MULTIQUERY][DIM];
+-
++	int iter;
+ 	__shared__ int finished[N_MULTIQUERY];
+ 	__shared__ idx_t index_list[N_MULTIQUERY][FIXED_DEGREE * N_MULTIPROBE];
+-	__shared__ char index_list_len[N_MULTIQUERY];
++	__shared__ int index_list_len[N_MULTIQUERY];
+ 	value_t start_distance;
++	
++	if(subtid == 0){
++		iter = 0;
++	}
+ 	__syncthreads();
+-
+ 	value_t tmp[N_MULTIQUERY];
+ 	#ifdef __USE_COS_DIST
+ 	value_t tmp_data_len[N_MULTIQUERY];
+@@ -118,9 +136,9 @@
+ 		tmp_data_len[j] = 0;
+ 		#endif
+ 		for(int i = tid;i < DIM;i += step){
+-			query_point[j][i] = d_query[(bid + j) * DIM + i];
++			query_point[j][i] = vec_load(d_query, (bid + j) * DIM + i);
+ 			#ifdef __USE_L2_DIST
+-			tmp[j] += (query_point[j][i] - d_data[i]) * (query_point[j][i] - d_data[i]); 
++			tmp[j] += (query_point[j][i] - vec_load(d_data, i)) * (query_point[j][i] - vec_load(d_data, i)); 
+ 			#elif __USE_IP_DIST
+ 			tmp[j] += query_point[j][i] * d_data[i]; 
+ 			#elif __USE_COS_DIST
+@@ -185,11 +203,14 @@
+ 			KernelPair<dist_t,idx_t> now;
+ 			if(subtid == 0){
+ 				now = smmh2::pop_min(q,heap_size[cid]);
++				atomicAdd(&path_len[0],1ULL);
++				iter+=1;
+ #ifdef __ENABLE_VISITED_DEL
+ 				pbf->del(now.second);
+ #endif
+-				if(k == 0 && topk_heap_size == TOPK && (topk[0].first <= now.first)){
++				if((k == 0 && topk_heap_size == QUEUE_SIZE)|| iter >= max_iterations){
+ 					++finished[cid];
++					iter = 0;
+ 				}
+ 			}
+ 			__syncthreads();
+@@ -201,7 +222,7 @@
+ #ifdef __ENABLE_VISITED_DEL
+ 				pbf->add(now.second);
+ #endif
+-				if(topk_heap_size > TOPK){
++				if(topk_heap_size > QUEUE_SIZE){
+ #ifdef __ENABLE_VISITED_DEL
+ 					pbf->del(topk[0].second);
+ #endif
+@@ -243,7 +264,7 @@
+ 				#endif
+ 				for(int j = tid;j < DIM;j += step){
+ 					#ifdef __USE_L2_DIST
+-					tmp += (query_point[nq][j] - d_data[index_list[nq][i] * DIM + j]) * (query_point[nq][j] - d_data[index_list[nq][i] * DIM + j]); 
++					tmp += (query_point[nq][j] - vec_load(d_data, index_list[nq][i] * DIM + j)) * (query_point[nq][j] - vec_load(d_data, index_list[nq][i] * DIM + j)); 
+ 					#elif __USE_IP_DIST
+ 					tmp += query_point[nq][j] * d_data[index_list[nq][i] * DIM + j]; 
+ 					#elif __USE_COS_DIST
+@@ -268,6 +289,7 @@
+ 					#endif
+ 				}
+ 				if(tid == nq * CRITICAL_STEP){
++					atomicAdd(&calculate_cnt[0],1ULL);
+ 					#ifdef __USE_L2_DIST
+ 					dist_list[i] = tmp;
+ 					#elif __USE_IP_DIST
+@@ -329,9 +351,9 @@
+     }
+ 
+ 	if(subtid == 0){
+-		for(int i = 0;i < TOPK;++i){
++		for(int i = 0;i < QUEUE_SIZE;++i){
+ 			auto now = pop_heap(topk,topk + topk_heap_size - i);
+-			d_result[(bid + cid) * TOPK + TOPK - 1 - i] = now.second;
++			d_result[(bid + cid) * QUEUE_SIZE + QUEUE_SIZE - 1 - i] = now.second;
+ 		}
+ 		delete[] q;
+ 		delete[] topk;
+@@ -340,20 +362,24 @@
+ 	}
+ }
+ 
++#ifndef SONG_FP16
+ class WarpAStarAccelerator{
+ private:
+ 
+ public:
+-    static void astar_multi_start_search_batch(const std::vector<std::vector<std::pair<int,value_t>>>& queries,int k,std::vector<std::vector<idx_t>>& results,value_t* h_data,idx_t* h_graph,int vertex_offset_shift,int num,int dim){
++    static void astar_multi_start_search_batch(const std::vector<std::vector<std::pair<int,value_t>>>& queries,int k,std::vector<std::vector<idx_t>>& results,value_t* h_data,idx_t* h_graph,int vertex_offset_shift,int num,int dim, unsigned long long& calculate_count, unsigned long long& path_length, int max_iterations){
+         value_t* d_data;
+ 		value_t* d_query;
++		unsigned long long* calculate_cnt;
++		unsigned long long* path_len;
+ 		idx_t* d_result;
+ 		idx_t* d_graph;
+-		
++		int new_size = max_iterations - 1;
+ 		cudaMalloc(&d_data,sizeof(value_t) * num * dim);
+ 		cudaMalloc(&d_graph,sizeof(idx_t) * (num << vertex_offset_shift));
+-		cudaMemcpy(d_data,h_data,sizeof(value_t) * num * dim,cudaMemcpyHostToDevice);
+-		cudaMemcpy(d_graph,h_graph,sizeof(idx_t) * (num << vertex_offset_shift),cudaMemcpyHostToDevice);
++		cudaMalloc(&calculate_cnt,sizeof(unsigned long long));
++		cudaMalloc(&path_len,sizeof(unsigned long long));
++		
+ 
+ #ifdef __ENABLE_MEASURE
+ 		Measure* d_measure;
+@@ -361,21 +387,26 @@
+ 		cudaMalloc(&d_measure,sizeof(Measure));
+ 		cudaMemcpy(d_measure,&h_measure,sizeof(Measure),cudaMemcpyHostToDevice);
+ #endif
+-
+-		auto time_begin = std::chrono::steady_clock::now();
+ 		std::unique_ptr<value_t[]> h_query = std::unique_ptr<value_t[]>(new value_t[queries.size() * dim]);
+-		memset(h_query.get(),0,sizeof(value_t) * queries.size() * dim);
+-		for(int i = 0;i < queries.size();++i){
+-			for(auto p : queries[i]){
+-				*(h_query.get() + i * dim + p.first) = p.second;
+-			}
+-		}
+-		std::unique_ptr<idx_t[]> h_result = std::unique_ptr<idx_t[]>(new idx_t[queries.size() * TOPK]);
+-
++				memset(h_query.get(),0,sizeof(value_t) * queries.size() * dim);
++				for(int i = 0;i < queries.size();++i){
++					for(auto p : queries[i]){
++						*(h_query.get() + i * dim + p.first) = p.second;
++					}
++				}
++				std::unique_ptr<idx_t[]> h_result = std::unique_ptr<idx_t[]>(new idx_t[queries.size() * new_size]);
+ 		cudaMalloc(&d_query,sizeof(value_t) * queries.size() * dim);
+-		cudaMalloc(&d_result,sizeof(idx_t) * queries.size() * TOPK);
++		cudaMalloc(&d_result,sizeof(idx_t) * queries.size() * new_size);
++		auto time_begin = std::chrono::steady_clock::now();
++		cudaMemcpy(path_len,&path_length,sizeof(unsigned long long),cudaMemcpyHostToDevice);
++		cudaMemcpy(calculate_cnt,&calculate_count,sizeof(unsigned long long),cudaMemcpyHostToDevice);
++		cudaMemcpy(d_data,h_data,sizeof(value_t) * num * dim,cudaMemcpyHostToDevice);
++		cudaMemcpy(d_graph,h_graph,sizeof(idx_t) * (num << vertex_offset_shift),cudaMemcpyHostToDevice);
+ 		
++		
++		
+ 		cudaMemcpy(d_query,h_query.get(),sizeof(value_t) * queries.size() * dim,cudaMemcpyHostToDevice);
++		
+ 
+ #ifdef __ENABLE_MEASURE
+ 		std::chrono::steady_clock::time_point mem_transfer = std::chrono::steady_clock::now();
+@@ -387,7 +418,7 @@
+ #ifdef __ENABLE_MEASURE
+ , d_measure
+ #endif
+-		);
++		,calculate_cnt,path_len,max_iterations);
+ 
+ #ifdef __ENABLE_MEASURE
+ 		cudaDeviceSynchronize();
+@@ -395,7 +426,9 @@
+ 		fprintf(stderr,"kernel takes %ld microseconds\n",std::chrono::duration_cast<std::chrono::microseconds>(kernel_end - kernel_begin).count());
+ 		std::chrono::steady_clock::time_point back_begin = std::chrono::steady_clock::now();
+ #endif
+-		cudaMemcpy(h_result.get(),d_result,sizeof(idx_t) * queries.size() * TOPK,cudaMemcpyDeviceToHost);
++		cudaMemcpy(h_result.get(),d_result,sizeof(idx_t) * queries.size() * new_size,cudaMemcpyDeviceToHost);
++		cudaMemcpy(&calculate_count, calculate_cnt, sizeof(unsigned long long), cudaMemcpyDeviceToHost);
++		cudaMemcpy(&path_length, path_len, sizeof(unsigned long long), cudaMemcpyDeviceToHost);
+ 
+ #ifdef __ENABLE_MEASURE
+ 		std::chrono::steady_clock::time_point back_end = std::chrono::steady_clock::now();
+@@ -408,9 +441,9 @@
+ #endif
+ 		results.clear();
+ 		for(int i = 0;i < queries.size();++i){
+-			std::vector<idx_t> v(TOPK);
+-			for(int j = 0;j < TOPK;++j)
+-				v[j] = h_result[i * TOPK + j];
++			std::vector<idx_t> v(new_size);
++			for(int j = 0;j < new_size;++j)
++				v[j] = h_result[i * new_size + j];
+ 			results.push_back(v);
+ 		}
+ 		std::chrono::steady_clock::time_point time_end = std::chrono::steady_clock::now();
+@@ -418,8 +451,134 @@
+ 		//printf("using %ld microseconds\n",std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_begin).count());
+ 		cudaFree(d_data);
+ 		cudaFree(d_query);
++		cudaFree(path_len);
+ 		cudaFree(d_result);
+ 		cudaFree(d_graph);
++		cudaFree(calculate_cnt);
+     }
+ };
++#endif
+ 
++
++// GPU-resident wrapper: base+graph stay on device; per-batch query H2D / kernel / D2H.
++// The kernel stops after max_iterations expansions (QUEUE_SIZE = max_iterations - 1).
++struct SongResidentSearch {
++	vec_t* d_data = nullptr;
++	idx_t* d_graph = nullptr;
++	vec_t* d_query = nullptr;
++	vec_t* h_query_vec = nullptr;  // host buffer for the converted queries
++	idx_t* d_result = nullptr;
++	unsigned long long* d_calc = nullptr;
++	unsigned long long* d_path = nullptr;
++#ifdef __ENABLE_MEASURE
++	Measure* d_measure = nullptr;
++#endif
++	int num = 0;
++	int dim = 0;
++	int vertex_offset_shift = 0;
++	int max_batch = 0;
++	int alloc_iterations = 55;
++	int max_iterations = 55;
++	int result_width = 54; // max_iterations - 1
++
++	void set_iterations(int it) {
++		if (it < 2 || it > alloc_iterations) {
++			fprintf(stderr, "set_iterations %d not in [2,%d]\n", it, alloc_iterations);
++			exit(1);
++		}
++		max_iterations = it;
++		result_width = it - 1;
++	}
++
++	void init(value_t* h_data, idx_t* h_graph, int vertex_offset_shift_, int num_, int dim_,
++	          int max_batch_, int max_iterations_) {
++		num = num_;
++		dim = dim_;
++		vertex_offset_shift = vertex_offset_shift_;
++		max_batch = max_batch_;
++		alloc_iterations = max_iterations_;
++		max_iterations = max_iterations_;
++		result_width = max_iterations - 1;
++		cudaMalloc(&d_data, sizeof(vec_t) * (size_t)num * dim);
++		cudaMalloc(&d_graph, sizeof(idx_t) * ((size_t)num << vertex_offset_shift));
++#ifdef SONG_FP16
++		{
++			std::vector<vec_t> tmp((size_t)num * dim);
++			for (size_t i = 0; i < tmp.size(); ++i) tmp[i] = __float2half_rn(h_data[i]);
++			cudaMemcpy(d_data, tmp.data(), sizeof(vec_t) * tmp.size(), cudaMemcpyHostToDevice);
++		}
++		cudaMallocHost(&h_query_vec, sizeof(vec_t) * (size_t)max_batch * dim);
++#else
++		cudaMemcpy(d_data, h_data, sizeof(vec_t) * (size_t)num * dim, cudaMemcpyHostToDevice);
++#endif
++		cudaMemcpy(d_graph, h_graph, sizeof(idx_t) * ((size_t)num << vertex_offset_shift), cudaMemcpyHostToDevice);
++		cudaMalloc(&d_query, sizeof(vec_t) * (size_t)max_batch * dim);
++		cudaMalloc(&d_result, sizeof(idx_t) * (size_t)max_batch * result_width);
++		cudaMalloc(&d_calc, sizeof(unsigned long long));
++		cudaMalloc(&d_path, sizeof(unsigned long long));
++#ifdef __ENABLE_MEASURE
++		cudaMalloc(&d_measure, sizeof(Measure));
++#endif
++	}
++
++	void search_batch(const value_t* h_query, int nq, idx_t* h_result,
++	                  cudaEvent_t e_h2d0, cudaEvent_t e_h2d1,
++	                  cudaEvent_t e_k0, cudaEvent_t e_k1,
++	                  cudaEvent_t e_d2h0, cudaEvent_t e_d2h1,
++	                  float* h2d_ms, float* kernel_ms, float* d2h_ms,
++	                  int kernel_chunk = 0) {
++		(void)kernel_chunk; // one launch for the whole batch; chunking underfills the GPU
++		if (nq > max_batch) { fprintf(stderr, "nq %d > max_batch %d\n", nq, max_batch); exit(1); }
++		unsigned long long zero = 0;
++		cudaMemcpy(d_calc, &zero, sizeof(zero), cudaMemcpyHostToDevice);
++		cudaMemcpy(d_path, &zero, sizeof(zero), cudaMemcpyHostToDevice);
++#ifdef __ENABLE_MEASURE
++		Measure hm{};
++		cudaMemcpy(d_measure, &hm, sizeof(Measure), cudaMemcpyHostToDevice);
++#endif
++#ifdef SONG_FP16
++		for (size_t i = 0; i < (size_t)nq * dim; ++i) h_query_vec[i] = __float2half_rn(h_query[i]);
++		const vec_t* h_query_up = h_query_vec;
++#else
++		const vec_t* h_query_up = h_query;
++#endif
++		cudaEventRecord(e_h2d0);
++		cudaMemcpy(d_query, h_query_up, sizeof(vec_t) * (size_t)nq * dim, cudaMemcpyHostToDevice);
++		cudaEventRecord(e_h2d1);
++		cudaEventSynchronize(e_h2d1);
++		cudaEventElapsedTime(h2d_ms, e_h2d0, e_h2d1);
++
++		cudaEventRecord(e_k0);
++		warp_independent_search_kernel<<<nq / N_MULTIQUERY, 32>>>(
++			d_data, d_query, d_result, d_graph, nq, vertex_offset_shift
++#ifdef __ENABLE_MEASURE
++			, d_measure
++#endif
++			, d_calc, d_path, max_iterations);
++		cudaEventRecord(e_k1);
++		cudaEventSynchronize(e_k1);
++		cudaEventElapsedTime(kernel_ms, e_k0, e_k1);
++
++		cudaEventRecord(e_d2h0);
++		cudaMemcpy(h_result, d_result, sizeof(idx_t) * (size_t)nq * result_width, cudaMemcpyDeviceToHost);
++		cudaEventRecord(e_d2h1);
++		cudaEventSynchronize(e_d2h1);
++		cudaEventElapsedTime(d2h_ms, e_d2h0, e_d2h1);
++	}
++
++	void cleanup() {
++		if (d_data) cudaFree(d_data);
++		if (d_graph) cudaFree(d_graph);
++		if (d_query) cudaFree(d_query);
++		if (d_result) cudaFree(d_result);
++		if (d_calc) cudaFree(d_calc);
++		if (h_query_vec) cudaFreeHost(h_query_vec);
++		h_query_vec = nullptr;
++		if (d_path) cudaFree(d_path);
++#ifdef __ENABLE_MEASURE
++		if (d_measure) cudaFree(d_measure);
++#endif
++		d_data = nullptr; d_graph = nullptr; d_query = nullptr;
++		d_result = nullptr; d_calc = d_path = nullptr;
++	}
++};
