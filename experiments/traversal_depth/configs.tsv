@@ -1,0 +1,29 @@
+dataset	max_degree	system	build_args
+sift1M	32	song	SD=15 SHIFT=5 BUDGET=60
+sift1M	32	ganns	K=16 M=64
+sift1M	32	ggnn	K=32 TAU=0.3 REFINE=2
+sift1M	32	cagra	GD=32 IGD=128 NITER=20
+sift1M	32	hnsw	M=16 EFC=60
+sift1M	32	pilotann	TYPE=nsg NN=32 EFC=80
+sift1M	32	vamana	R=32 L=100 ALPHA=1.2
+deep1M	32	song	SD=15 SHIFT=5 BUDGET=60
+deep1M	32	ganns	K=16 M=64
+deep1M	32	ggnn	K=32 TAU=0.3 REFINE=2
+deep1M	32	cagra	GD=32 IGD=128 NITER=20
+deep1M	32	hnsw	M=16 EFC=60
+deep1M	32	pilotann	TYPE=nsg NN=32 EFC=80
+deep1M	32	vamana	R=32 L=100 ALPHA=1.2
+deep10M	64	song	SD=31 SHIFT=6 BUDGET=120
+deep10M	64	ganns	K=32 M=128
+deep10M	64	ggnn	K=64 TAU=0.3 REFINE=2
+deep10M	64	cagra	GD=64 IGD=128 NITER=20
+deep10M	64	hnsw	M=32 EFC=120
+deep10M	64	pilotann	TYPE=nsg NN=64 EFC=80
+deep10M	64	vamana	R=64 L=100 ALPHA=1.2
+gist	128	song	SD=63 SHIFT=7 BUDGET=180
+gist	128	ganns	K=64 M=256
+gist	128	ggnn	K=128 TAU=0.3 REFINE=2
+gist	128	cagra	GD=128 IGD=128 NITER=20
+gist	128	hnsw	M=64 EFC=180
+gist	128	pilotann	TYPE=nsg NN=64 EFC=80
+gist	128	vamana	R=128 L=100 ALPHA=1.2
