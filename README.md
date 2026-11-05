@@ -195,8 +195,9 @@ E=experiments/loading
 for ds in deep1M deep10M deep100M; do bash $E/gt_5m.sh $ds; done
 bash $E/run_resident_r95.sh deep1M; bash $E/run_resident_r95.sh deep10M; bash $E/run_deep100M_r95.sh
 bash $E/run_h2d_bench.sh
+bash experiments/equal_degree/run_hnsw.sh deep1M deep10M  # the HNSW_20 line, needs equal_degree/build_hnsw.sh
 $ENV_BUILD/bin/python $E/per_query_table.py --h2d $OUT_DIR/loading/h2d/summary.tsv \
-    --root $OUT_DIR/loading --out $OUT_DIR/loading/fig06_amortization.csv
+    --root $OUT_DIR/loading --hnsw-root $OUT_DIR/equal_degree/hnsw --out $OUT_DIR/loading/fig06_amortization.csv
 $ENV_BUILD/bin/python $E/payload_table.py --out $OUT_DIR/loading/payload.tsv
 ```
 

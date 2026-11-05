@@ -9,10 +9,13 @@ Per steady batch i (batch_id >= 1; batch 0 is the warm-up): t_i = h2d_query_ms +
 The query copies (h2d_query_ms, d2h_topk_ms) carry the same payload for every system. With
 --shared-xfer SYSTEM (default cagra) they are taken from the run of SYSTEM on the same dataset and
 the kernel time from each system's own run (the default); --shared-xfer none uses each run's own.
+HNSW_20 stays on the host, so it has no load: amortized and resident are both 1000 / QPS at the smallest
+efSearch that reaches 95% Recall@10 with 20 threads, on deep1M and deep10M.
 
 Inputs:
   --h2d   summary.tsv of run_h2d_bench.sh
   --root  $OUT_DIR/loading, holding <dataset>/summary_resident_search_r95.tsv and the run directories
+  --hnsw-root  optional, $OUT_DIR/equal_degree/hnsw, holding <dataset>/k10/t20.log of equal_degree/run_hnsw.sh
 Output (--out): dataset,system,kind,queries_served,ms_per_query,load_ms
 
 Usage: python per_query_table.py --h2d H2D.tsv --root DIR --out fig06_amortization.csv
@@ -27,6 +30,11 @@ logger = logging.getLogger(__name__)
 
 SYSTEM = {"cagra": "CAGRA", "ggnn": "GGNN", "ganns": "GANNS", "song": "SONG"}
 N_BATCHES = (1, 5, 10, 50, 100)
+HNSW_DATASETS = ("deep1M", "deep10M")
+HNSW_SERVED = (10_000, 50_000, 100_000, 500_000, 1_000_000, 5_000_000)  # the queries served of the GPU curves
+HNSW_COLS = ["threads", "batch", "efSearch", "k", "nq", "n_batches", "wall_ms", "qps", "recall@10", "wall_ms_std",
+             "n_timed"]  # fields after "row" in the output of faiss_hnsw search
+TARGET = 0.95
 
 
 def load_ms(h2d: Path) -> Dict[str, Dict[str, float]]:
@@ -67,12 +75,23 @@ def run_dirs(ds_root: Path) -> Dict[str, Path]:
     return out
 
 
+def hnsw_ms_per_query(log: Path) -> Optional[float]:
+    """Time per query at the smallest efSearch that reaches TARGET in a faiss_hnsw log, or None."""
+    rows = [dict(zip(HNSW_COLS, line.split("\t")[1:])) for line in log.read_text().splitlines()
+            if line.startswith("row\t")]
+    ok = [r for r in rows if float(r["recall@10"]) >= TARGET]
+    if not ok:
+        return None
+    return 1000.0 / float(min(ok, key=lambda r: int(r["efSearch"]))["qps"])
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--h2d", type=Path, required=True)
     ap.add_argument("--root", type=Path, required=True)
     ap.add_argument("--datasets", nargs="+", default=["deep1M", "deep10M", "deep100M"])
     ap.add_argument("--shared-xfer", default="cagra", help="system whose query copy times are used, or none")
+    ap.add_argument("--hnsw-root", type=Path, help="$OUT_DIR/equal_degree/hnsw, adds HNSW_20")
     ap.add_argument("--out", type=Path, required=True)
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -111,6 +130,18 @@ def main() -> None:
                          "queries_served": "", "ms_per_query": sum(per_batch) / len(per_batch) / bsz,
                          "load_ms": one_load})
             logger.info("%s %s: %d steady batches, load %.2f ms", ds, SYSTEM[algo], len(batches), one_load)
+        log = args.hnsw_root / ds / "k10" / "t20.log" if args.hnsw_root else None
+        if log is None or ds not in HNSW_DATASETS:
+            continue
+        ms = hnsw_ms_per_query(log) if log.exists() else None
+        if ms is None:
+            logger.warning("%s HNSW_20: no point reaches Recall@10 %.2f in %s, skipped", ds, TARGET, log)
+            continue
+        for served in HNSW_SERVED:
+            rows.append({"dataset": ds, "system": "HNSW_20", "kind": "amortized", "queries_served": served,
+                         "ms_per_query": ms, "load_ms": 0.0})
+        rows.append({"dataset": ds, "system": "HNSW_20", "kind": "resident", "queries_served": "",
+                     "ms_per_query": ms, "load_ms": 0.0})
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     with args.out.open("w", newline="") as f:
