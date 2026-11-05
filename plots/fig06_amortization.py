@@ -1,6 +1,7 @@
 """Figure 6: time per query when the index is loaded once and then serves batches of 10,000 queries.
 
 Solid: (one-time load + all batches so far) / queries served. Dashed: per-query time with a resident index.
+HNSW_20 stays on the host, so it has no load and its two lines coincide.
 Input: results/fig06_amortization.csv. Output: fig06_<dataset>.pdf and fig06_legend.pdf.
 """
 import logging
@@ -14,7 +15,7 @@ import style
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger(__name__)
 
-SYSTEMS = ['CAGRA', 'GGNN', 'GANNS', 'SONG']
+SYSTEMS = ['CAGRA', 'GGNN', 'GANNS', 'SONG', 'HNSW_20']
 
 
 def main() -> None:

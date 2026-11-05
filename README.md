@@ -124,7 +124,7 @@ D = 32, 64, 96 and 128.
 | Figure 7 | QPS and Recall@10 on eight datasets | `qps_recall/`, `nongraph_baselines/`, `equal_degree/` | `fig07_qps_recall.py` |
 | Figure 8 | batch size | `batch_size/` | `fig08_batch_size.py` |
 | Figure 9 | time per search stage | `equal_degree/` | `fig09_search_components.py` |
-| Figure 10 | QPS at 95% Recall@10 on DEEP1M, DEEP10M, DEEP100M | `qps_recall/`, `equal_degree/` | `fig10_scalability.py` |
+| Figure 10 | QPS near 95% Recall@10 on DEEP1M, DEEP10M, DEEP100M | `qps_recall/`, `equal_degree/` | `fig10_scalability.py` |
 | Figure 11 | Recall@K for K = 10, 40, 70, 100 | `topk_degree/`, `qps_recall/`, `equal_degree/` | `fig11_topk.py` |
 | Figure 12 | maximum degree 64 and 128 | `equal_degree/`, `topk_degree/` | `fig12_degree.py` |
 | Figure 13 | CAGRA parameters | `cagra_parameters/` | `fig13_cagra_parameters.py` |
@@ -195,8 +195,9 @@ E=experiments/loading
 for ds in deep1M deep10M deep100M; do bash $E/gt_5m.sh $ds; done
 bash $E/run_resident_r95.sh deep1M; bash $E/run_resident_r95.sh deep10M; bash $E/run_deep100M_r95.sh
 bash $E/run_h2d_bench.sh
+bash experiments/equal_degree/run_hnsw.sh deep1M deep10M  # the HNSW_20 line, needs equal_degree/build_hnsw.sh
 $ENV_BUILD/bin/python $E/per_query_table.py --h2d $OUT_DIR/loading/h2d/summary.tsv \
-    --root $OUT_DIR/loading --out $OUT_DIR/loading/fig06_amortization.csv
+    --root $OUT_DIR/loading --hnsw-root $OUT_DIR/equal_degree/hnsw --out $OUT_DIR/loading/fig06_amortization.csv
 $ENV_BUILD/bin/python $E/payload_table.py --out $OUT_DIR/loading/payload.tsv
 ```
 

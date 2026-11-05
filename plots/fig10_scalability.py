@@ -1,8 +1,8 @@
-"""Figure 10: QPS at 95% Recall@10 on DEEP1M, DEEP10M and DEEP100M. A triangle marks a build that ran out of memory.
+"""Figure 10: QPS near 95% Recall@10 on DEEP1M, DEEP10M and DEEP100M. A triangle marks a build that ran out of memory.
 
 Input: results/fig10_scalability.csv (time per 10,000 queries at the plotted QPS: kernel time for SONG, GGNN, GANNS and CAGRA,
-wall time for BANG and PilotANN; status below_target marks a curve that does not
-reach the target recall, drawn as a label). Output: fig10_scalability.pdf.
+wall time for BANG and PilotANN; status below_target marks a curve that stops
+below the minimum recall of summarize.py, drawn as a label). Output: fig10_scalability.pdf.
 """
 import logging
 import os
@@ -36,7 +36,7 @@ def main() -> None:
                        color=tuple(c / 255 for c in COLORS[i]), edgecolor='black', linewidth=2.25, label=name)
         for bar, qps, status in zip(bars, sub['qps'], sub['status']):
             xp = bar.get_x() + bar.get_width() / 2
-            if qps == 0 and status == 'below_target':  # the curve exists but does not reach TARGET
+            if qps == 0 and status == 'below_target':  # the curve exists but stops below the minimum recall
                 plt.text(xp, 1.5e2, f'<{TARGET:.0%}', rotation=90, ha='center', va='bottom', color='red',
                          fontdict={'family': 'Times New Roman'})
             elif qps == 0:  # out of memory: arrow from 1e4 down and a triangle above it
