@@ -124,7 +124,7 @@ D = 32, 64, 96 and 128.
 | Figure 7 | QPS and Recall@10 on eight datasets | `qps_recall/`, `nongraph_baselines/`, `equal_degree/` | `fig07_qps_recall.py` |
 | Figure 8 | batch size | `batch_size/` | `fig08_batch_size.py` |
 | Figure 9 | time per search stage | `equal_degree/` | `fig09_search_components.py` |
-| Figure 10 | QPS at 95% Recall@10 on DEEP1M, DEEP10M, DEEP100M | `qps_recall/`, `equal_degree/` | `fig10_scalability.py` |
+| Figure 10 | QPS near 95% Recall@10 on DEEP1M, DEEP10M, DEEP100M | `qps_recall/`, `equal_degree/` | `fig10_scalability.py` |
 | Figure 11 | Recall@K for K = 10, 40, 70, 100 | `topk_degree/`, `qps_recall/`, `equal_degree/` | `fig11_topk.py` |
 | Figure 12 | maximum degree 64 and 128 | `equal_degree/`, `topk_degree/` | `fig12_degree.py` |
 | Figure 13 | CAGRA parameters | `cagra_parameters/` | `fig13_cagra_parameters.py` |
