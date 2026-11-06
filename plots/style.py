@@ -31,6 +31,8 @@ COLORS = ['#8B2E24', '#E63946', '#FF6B35', '#FFD23F', '#A8D840', '#06FFA5', '#63
 MARKERS = ['o', 's', '^', 'v', 'D', 'p', '*', 'h', '<', 'H', '1']
 COLOR = dict(zip(SYSTEMS, COLORS))
 MARKER = dict(zip(SYSTEMS, MARKERS))
+# The results files name the DiskANN graph Vamana; the paper calls it DiskANN
+LABEL = {'Vamana': 'DiskANN'}
 
 # Non-graph GPU baselines: dashed black and gray lines
 BASELINES = {
@@ -110,7 +112,7 @@ def finish_qps_panel(fig: Figure, ax, xlabel: str, width_pt: float, out: str) ->
 def system_legend(systems: List[str], out: str, ncol: int, width_pt: float = None) -> None:
     """Legend PDF with one entry per system, 9 pt, inserted unscaled."""
     handles = [plt.Line2D([0], [0], marker=MARKER[s], markersize=6, markerfacecolor='none', markeredgecolor=COLOR[s],
-                          markeredgewidth=1, color=COLOR[s], linewidth=1.2, alpha=0.85, label=s) for s in systems]
+                          markeredgewidth=1, color=COLOR[s], linewidth=1.2, alpha=0.85, label=LABEL.get(s, s)) for s in systems]
     save_legend(handles, out, ncol=ncol, prop={'family': 'Times New Roman', 'size': 9}, width_pt=width_pt,
                 columnspacing=0.8, handletextpad=0.3, handlelength=1.6)
 

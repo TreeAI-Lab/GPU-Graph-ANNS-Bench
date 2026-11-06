@@ -21,10 +21,10 @@ DATASETS = ['GIST', 'DEEP1M', 'DEEP10M', 'SIFT1M']
 # (system in the results file, legend label, color)
 BARS_A = [('SONG', 'SONG', '#8A95D5'), ('GGNN', 'GGNN', '#F27066'), ('GANNS', 'GANNS', '#A446E8'),
           ('CAGRA', 'CAGRA', '#808080'), ('BANG', 'BANG', '#3DBDD6'), ('PilotANN', 'PilotANN', '#B983CD'),
-          ('Vamana', 'Vamana', '#F4A3D0'), ('HNSW', 'HNSW', '#5CB8B0')]
-# BANG searches the Vamana graph, so the common search gives one bar for both
+          ('Vamana', 'DiskANN', '#F4A3D0'), ('HNSW', 'HNSW', '#5CB8B0')]
+# BANG searches the DiskANN graph, so the common search gives one bar for both
 BARS_B = [('SONG', 'SONG', '#8A95D5'), ('GGNN', 'GGNN', '#F27066'), ('GANNS', 'GANNS', '#A446E8'),
-          ('CAGRA', 'CAGRA', '#808080'), ('BANG/Vamana', 'BANG / Vamana', '#3DBDD6'),
+          ('CAGRA', 'CAGRA', '#808080'), ('BANG/Vamana', 'BANG / DiskANN', '#3DBDD6'),
           ('PilotANN', 'PilotANN', '#B983CD'), ('HNSW', 'HNSW', '#5CB8B0')]
 BAR_W = 0.11
 STAR = dict(marker='*', color='gold', markersize=19, markeredgecolor='orange', markeredgewidth=1.5)
