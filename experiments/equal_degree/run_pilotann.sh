@@ -12,7 +12,7 @@ source "$(cd "$(dirname "$0")" && pwd)/common.sh"
 
 K=${K:-10}
 ALGORITHM=${ALGORITHM:-nsg}
-EF_LIST=${EF_LIST:-$(seq 10 2 300)}
+EF_LIST=${EF_LIST:-$(seq 10 2 500)}
 PY=$ENV_PILOT/bin/python
 DATASETS=("$@")
 [ ${#DATASETS[@]} -gt 0 ] || DATASETS=(deep10M sift1M gist deep1M mnist8M)

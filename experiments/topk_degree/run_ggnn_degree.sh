@@ -14,5 +14,5 @@ for D in $DEGREES; do
   if [[ ! -d $graph ]] || [[ -z $(find "$graph" -mindepth 1 -print -quit) ]]; then
     bash "$EQDEG/build_indexes.sh" ggnn sift1M "$D"
   fi
-  DEGREE=$D K=10 WARMUP_RUNS=1 TIMED_RUNS=3 IT_LIST="$(seq 10 2 300)" bash "$EQDEG/run_ggnn.sh" sift1M
+  DEGREE=$D K=10 WARMUP_RUNS=1 TIMED_RUNS=3 IT_LIST="$(seq 10 2 500)" bash "$EQDEG/run_ggnn.sh" sift1M
 done

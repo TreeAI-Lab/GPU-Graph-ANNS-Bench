@@ -17,8 +17,8 @@ BATCH=${BATCH:-10000}
 OUT=$OUT_DIR/qps_recall
 PY_CAGRA=$ENV_CAGRA/bin/python
 mkdir -p "$OUT"
-ITF=$OUT/it_10_300_s2.txt
-seq 10 2 300 > "$ITF"
+ITF=$OUT/it_10_500_s2.txt
+seq 10 2 500 > "$ITF"
 ITS=$ITF
 
 maybe() { [[ -z "$ONLY" || "$ONLY" == "$1" ]]; }

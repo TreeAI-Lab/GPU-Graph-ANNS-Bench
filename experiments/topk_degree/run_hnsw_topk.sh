@@ -1,7 +1,7 @@
 #!/bin/bash
 # Figure 11, HNSW curves: Faiss HNSW (IndexHNSWFlat, M = 16, so maximum degree 32, efConstruction = 60, L2) on sift1M with
 # 1, 10, 20 and 40 threads for K = 10, 40, 70, 100.
-# For every K the values 10, 12, ..., 300 are searched;
+# For every K the values 10, 12, ..., 500 are searched;
 # all 10,000 queries go to one search() call; each efSearch is searched once untimed as warm-up,
 # then timed SEARCH_REPEATS (3) times; wall_ms is the mean of the timed searches, QPS = nq / mean
 # wall time; recall = Recall@K.
@@ -29,8 +29,8 @@ export LD_LIBRARY_PATH=$W/build/faiss-hnsw/install/lib:$ENV_FAISS/lib:${LD_LIBRA
 
 mkdir -p "$OUT" "$(dirname "$INDEX")"
 if [[ -z ${EF_ALL:-} ]]; then
-  EF_ALL=$OUT/ef_10_300_s2.txt
-  seq 10 2 300 > "$EF_ALL"
+  EF_ALL=$OUT/ef_10_500_s2.txt
+  seq 10 2 500 > "$EF_ALL"
 fi
 
 if [[ ! -f "$INDEX" ]]; then

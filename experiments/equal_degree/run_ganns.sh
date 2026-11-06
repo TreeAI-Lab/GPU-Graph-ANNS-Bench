@@ -12,7 +12,7 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/../../env.sh"
 source "$(cd "$(dirname "$0")" && pwd)/common.sh"
 
-E_LIST=${E_LIST:-$(seq 10 2 300)}   # candidate list sizes
+E_LIST=${E_LIST:-$(seq 10 2 500)}   # candidate list sizes
 K=${K:-10}
 DATASETS=("$@")
 [ ${#DATASETS[@]} -gt 0 ] || DATASETS=(gist deep10M sift1M nytimes glove200 mnist8M deep1M)

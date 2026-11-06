@@ -1,5 +1,5 @@
 #!/bin/bash
-# L sweep of BANG on one dataset, to choose its operating point in points.tsv: the first L (10, 12, ..., 300) with
+# L sweep of BANG on one dataset, to choose its operating point in points.tsv: the first L (10, 12, ..., 500) with
 # Recall@10 >= 0.95. Each L is searched four times: one untimed
 # warm-up and three timed.
 # usage: bash bang_sweep.sh <deep1M|gist>
@@ -20,7 +20,7 @@ GT=$OUT_DIR/profiling/gt/${DS}_k10.ibin
 mkdir -p "$OUT" "$(dirname "$GT")"
 [[ -f "$GT" ]] || "$PY" "$HERE/make_gt_k10.py" "$DATA_DIR/$DS/gt.ibin" "$GT"
 : >"$OUT/raw.log"
-for L in $(seq 10 2 300); do
+for L in $(seq 10 2 500); do
   OMP_NUM_THREADS=${OMP_NUM_THREADS:-14} "$W/build/bang/r$R/bang_search" \
     "$INDEX_DIR/$DS/bang/r${R}_l100_b4/bang_format/$DS" "$DATA_DIR/$DS/query.fbin" "$GT" "$NQ" 10 float l2 "$L" \
     >> "$OUT/raw.log" 2>&1

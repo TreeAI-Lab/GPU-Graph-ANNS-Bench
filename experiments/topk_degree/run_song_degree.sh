@@ -14,5 +14,5 @@ for D in $DEGREES; do
   graph=$INDEX_DIR/sift1M/song/eqdeg-d$D/bfsg.graph
   [[ -x $bin ]] || bash "$EQDEG/build_song.sh" sift1M "$D"
   [[ -f $graph ]] || bash "$EQDEG/build_indexes.sh" song sift1M "$D"
-  DEGREE=$D K=10 WARMUP_RUNS=1 TIMED_RUNS=3 IT_LIST="$(seq 10 2 300)" bash "$EQDEG/run_song.sh" sift1M
+  DEGREE=$D K=10 WARMUP_RUNS=1 TIMED_RUNS=3 IT_LIST="$(seq 10 2 500)" bash "$EQDEG/run_song.sh" sift1M
 done

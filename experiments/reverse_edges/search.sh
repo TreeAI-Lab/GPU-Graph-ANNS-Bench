@@ -2,7 +2,7 @@
 # Figure 16, step 3: search both graphs with the same settings and iteration budgets.
 # Each graph becomes a CAGRA index with the base vectors attached (make_graph_to_cagra, then attach_dataset), which
 # the CAGRA sweep of Figure 7 (src/search/cagra/cagra_iter_sweep.py, cuVS 25.02 Python) searches: for every
-# iteration count 10, 12, ..., 300 the first query batch runs once as an untimed warm-up
+# iteration count 10, 12, ..., 500 the first query batch runs once as an untimed warm-up
 # and three times timed (sweep.tsv holds the means), with itopk = max(32, it rounded up to a multiple of 32) and
 # search width 1.
 set -euo pipefail
@@ -19,8 +19,8 @@ QR=$BENCH/experiments/qps_recall
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 mkdir -p "$OUT/search"
-ITF=$OUT/search/it_10_300_s2.txt
-seq 10 2 300 > "$ITF"
+ITF=$OUT/search/it_10_500_s2.txt
+seq 10 2 500 > "$ITF"
 GT=$OUT/search/gt.k10.ibin
 [[ -f $GT ]] || "$PYTHON" "$QR/gt_top10.py" "$DATA_DIR/$DS/gt.ibin" "$GT"
 

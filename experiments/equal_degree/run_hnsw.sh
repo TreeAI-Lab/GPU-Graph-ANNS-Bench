@@ -10,9 +10,9 @@ source "$(cd "$(dirname "$0")" && pwd)/common.sh"
 K=${K:-10}
 THREAD_LIST=${THREAD_LIST:-"1 10 20 40"}
 if [[ -z ${EF_FILE:-} ]]; then
-  EF_FILE=$EQDEG_OUT/hnsw/ef_10_300_s2.txt
+  EF_FILE=$EQDEG_OUT/hnsw/ef_10_500_s2.txt
   mkdir -p "$(dirname "$EF_FILE")"
-  seq 10 2 300 > "$EF_FILE"
+  seq 10 2 500 > "$EF_FILE"
 fi
 BIN=${BIN:-$BIN_DIR/faiss_hnsw}
 export SEARCH_REPEATS=${TIMED_RUNS:-3}

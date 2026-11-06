@@ -12,5 +12,5 @@ DEGREES=${DEGREES:-64 128}
 for D in $DEGREES; do
   index=$INDEX_DIR/sift1M/vamana/eqdeg-d$D/vamana_disk.index
   [[ -f $index ]] || bash "$EQDEG/build_indexes.sh" vamana sift1M "$D"
-  DEGREE=$D K=10 WARMUP_RUNS=1 TIMED_RUNS=3 L_LIST="$(seq 10 2 300)" bash "$EQDEG/run_vamana.sh" sift1M
+  DEGREE=$D K=10 WARMUP_RUNS=1 TIMED_RUNS=3 L_LIST="$(seq 10 2 500)" bash "$EQDEG/run_vamana.sh" sift1M
 done

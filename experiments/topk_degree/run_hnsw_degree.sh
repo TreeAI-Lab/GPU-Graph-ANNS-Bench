@@ -8,9 +8,9 @@ source "$(cd "$(dirname "$0")" && pwd)/../../env.sh"
 
 EQDEG=$BENCH/experiments/equal_degree
 DEGREES=${DEGREES:-64 128}
-EF=$OUT_DIR/topk_degree/ef_10_300_s2.txt
+EF=$OUT_DIR/topk_degree/ef_10_500_s2.txt
 mkdir -p "$(dirname "$EF")"
-seq 10 2 300 > "$EF"
+seq 10 2 500 > "$EF"
 
 for D in $DEGREES; do
   index=$INDEX_DIR/sift1M/hnsw/eqdeg-d$D/hnsw.faissindex

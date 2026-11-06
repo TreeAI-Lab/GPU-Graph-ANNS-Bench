@@ -12,7 +12,7 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/../../env.sh"
 source "$(cd "$(dirname "$0")" && pwd)/common.sh"
 
-IT_LIST=${IT_LIST:-$(seq 10 2 300)}   # max_iterations values
+IT_LIST=${IT_LIST:-$(seq 10 2 500)}   # max_iterations values
 K=${K:-10}                           # KQuery and K of Recall@K
 DATASETS=("$@")
 [ ${#DATASETS[@]} -gt 0 ] || DATASETS=(gist sift1M nytimes deep10M glove200 mnist8M deep100M deep1M)

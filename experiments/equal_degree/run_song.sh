@@ -13,7 +13,7 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/../../env.sh"
 source "$(cd "$(dirname "$0")" && pwd)/common.sh"
 
-IT_LIST=${IT_LIST:-$(seq 10 2 300)}   # max_iterations values
+IT_LIST=${IT_LIST:-$(seq 10 2 500)}   # max_iterations values
 K=${K:-10}                           # results printed per query and K of Recall@K
 SEARCH_TOP_K=100                     # used only by the CPU program
 DATASETS=("$@")

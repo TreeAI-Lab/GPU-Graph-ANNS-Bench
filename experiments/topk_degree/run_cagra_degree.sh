@@ -7,7 +7,7 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/../../env.sh"
 
 DEGREES=${DEGREES:-64 128}
-IT_LIST=${IT_LIST:-$(seq 10 2 300)}
+IT_LIST=${IT_LIST:-$(seq 10 2 500)}
 SEARCH_WIDTH=${SEARCH_WIDTH:-1}
 ITOPK=${ITOPK:-128}
 TEAM_SIZE=${TEAM_SIZE:-8}

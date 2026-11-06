@@ -1,5 +1,5 @@
 #!/bin/bash
-# BANG search of the equal-degree runs (Figures 5(a), 9, 12): L = 10, 12, ..., 300. For every L,
+# BANG search of the equal-degree runs (Figures 5(a), 9, 12): L = 10, 12, ..., 500. For every L,
 # bang_search searches all queries once as an untimed warm-up and then three times, and prints a line per run
 # and a summary line with the mean wall-clock time of the three timed searches, the QPS (queries / mean time)
 # and Recall@K (third_party/patches/bang.patch).
@@ -15,7 +15,7 @@ source "$(cd "$(dirname "$0")" && pwd)/../../env.sh"
 source "$(cd "$(dirname "$0")" && pwd)/common.sh"
 
 K=${K:-10}
-L_LIST=${L_LIST:-$(seq 10 2 300)}
+L_LIST=${L_LIST:-$(seq 10 2 500)}
 DATASETS=("$@")
 [ ${#DATASETS[@]} -gt 0 ] || DATASETS=(gist sift1M nytimes deep10M glove200 mnist8M deep100M deep1M)
 

@@ -10,7 +10,7 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/../../env.sh"
 source "$(cd "$(dirname "$0")" && pwd)/common.sh"
 
-IT_LIST=${IT_LIST:-$(seq 10 2 300)}
+IT_LIST=${IT_LIST:-$(seq 10 2 500)}
 SEARCH_WIDTH=${SEARCH_WIDTH:-1}
 ITOPK=${ITOPK:-128}
 TEAM_SIZE=${TEAM_SIZE:-8}

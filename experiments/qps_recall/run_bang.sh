@@ -1,7 +1,7 @@
 #!/bin/bash
 # QPS-recall sweep of BANG over its worklist length L (Figure 7).
 # Usage: bash experiments/qps_recall/run_bang.sh [dataset ...]   (default: BANG_DATASETS of datasets.sh)
-# bang_search runs all queries of the dataset as one batch for L = 10, 12, ..., 300.
+# bang_search runs all queries of the dataset as one batch for L = 10, 12, ..., 500.
 # For each L it searches four times in a row: one untimed warm-up run, then three timed runs. The wall time of a
 # run is one bang_query call (host clock, whole ms); sweep.tsv has the mean over the three timed runs and
 # QPS = nq / mean wall time.
@@ -31,11 +31,11 @@ run_one() {
   mkdir -p "$out"
   dist=l2
   [[ $ds == glove200 || $ds == nytimes ]] && dist=cos
-  echo "======== bang $ds L=10..300 step 2 runs_per_L=4 (1 warm-up + 3 timed) dist=$dist $(date '+%F %T') ========"
+  echo "======== bang $ds L=10..500 step 2 runs_per_L=4 (1 warm-up + 3 timed) dist=$dist $(date '+%F %T') ========"
   set +e
   : >"$out/raw.log"
   rc=0
-  for L in $(seq 10 2 300); do
+  for L in $(seq 10 2 500); do
     clear_caches
     "$BANG_DIR/bang_search" "$prefix" "$DATA_DIR/$data/query.fbin" "$gt" "$nq" 10 float "$dist" "$L" >>"$out/raw.log" 2>&1 || rc=$?
   done
@@ -50,7 +50,7 @@ run_one() {
     echo "index_prefix	$prefix"
     echo "batch_size	$nq"
     echo "k	10"
-    echo "mode	L_10_to_300_step_2"
+    echo "mode	L_10_to_500_step_2"
     echo "runs_per_L	4"
     echo "warmup_per_L	1"
     echo "timed_per_L	3"

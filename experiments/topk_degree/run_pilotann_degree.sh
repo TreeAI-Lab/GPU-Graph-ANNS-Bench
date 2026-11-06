@@ -4,7 +4,7 @@
 # queries (per ef one untimed warm-up run and three timed runs, means reported, k = 10).
 # Degree 128 needs the larger traversal buffer of third_party/patches/pilotann.patch
 # (BUFFER_SIZE 512 >= beam width 4 x degree 128).
-# The builder is that of the Figure 7 PilotANN curves (src/search/pilotann). ef = 10 to 300, step 2.
+# The builder is that of the Figure 7 PilotANN curves (src/search/pilotann). ef = 10 to 500, step 2.
 #
 # Usage: bash experiments/topk_degree/run_pilotann_degree.sh
 # Outputs:
@@ -37,5 +37,5 @@ for D in $DEGREES; do
   echo "=== sweep degree $D -> $OUT ==="
   "$PY" -u "$PILOT/pilotann_sweep.py" --ckpt "$CKPT" --query "$DATA/query.fbin" --gt "$DATA/gt.ibin" \
     --out "$OUT" --dataset sift1M --batch "$BATCH" --k "$K" \
-    --efs "$(seq 10 2 300 | tr '\n' ',' | sed 's/,$//')" 2>&1 | tee "$OUT/run.log"
+    --efs "$(seq 10 2 500 | tr '\n' ',' | sed 's/,$//')" 2>&1 | tee "$OUT/run.log"
 done

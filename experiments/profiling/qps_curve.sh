@@ -1,6 +1,6 @@
 #!/bin/bash
 # FP32 and FP16 QPS-recall curves of Figure 14: GIST and DEEP1M; SONG, GGNN, GANNS, CAGRA; 16 curves.
-# The iteration counts are 10, 12, ..., 300. At each iteration count the program runs one untimed warm-up search and then
+# The iteration counts are 10, 12, ..., 500. At each iteration count the program runs one untimed warm-up search and then
 # three timed searches; QPS = nq / kernel_ms of a timed search, as in Figure 7, and mean.tsv holds the mean over the
 # timed searches.
 # IT_SLEEP_MS (default 500) makes the programs sleep before each iteration count so that every measurement starts
@@ -17,7 +17,7 @@ source "$HERE/../../env.sh"
 OUT=${OUT:-$OUT_DIR/profiling/fp16_curves}
 REPS=${REPS:-1}
 export IT_SLEEP_MS=${IT_SLEEP_MS:-500}
-GRID="$(seq 10 2 300)"
+GRID="$(seq 10 2 500)"
 for i in $(seq 1 "$REPS"); do
   for ds in gist deep1M; do for sys in song ggnn ganns cagra; do for prec in fp32 fp16; do
     d=$OUT/${ds}_${sys}_${prec}/rep$i

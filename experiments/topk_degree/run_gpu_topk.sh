@@ -4,7 +4,7 @@
 # returned, and recall is Recall@K against the top-K ground truth. The K = 10 curves of Figure 11 are those of
 # Figure 7. Every point searches the 10,000 queries as one batch, once as an untimed warm-up and then three times
 # timed; sweep.tsv holds the means.
-# Sweeps: 10, 12, ..., 300.
+# Sweeps: 10, 12, ..., 500.
 #
 # Usage:  bash experiments/topk_degree/run_gpu_topk.sh
 #         KS="40 70 100"  ONLY=<cagra|ggnn|ganns|song|bang|pilotann>  FORCE=1 repeats finished sweeps
@@ -41,7 +41,7 @@ maybe() { [[ -z "$ONLY" || "$ONLY" == "$1" ]]; }
 
 # schedule <system> <K>: the effort values of the sweep, one per line
 schedule() {
-  seq 10 2 300
+  seq 10 2 500
 }
 
 run_one() {

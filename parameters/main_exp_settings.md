@@ -24,11 +24,23 @@
 - **Other parameters:** Unless otherwise specified, use the defaults provided by the original implementations.
 
 - **Search target:** Retrieve the top-10 nearest neighbors.
-- **Search evaluation (graph indexes):** Vary only the number of search iterations from 10 to 300, inclusive, in increments of 2 to measure QPS and recall; keep all other search parameters fixed. IVF-PQ uses the nprobe sweep specified below instead.
+- **Search evaluation (graph indexes):** Vary only the number of search iterations from 10 to 500, inclusive, in increments of 2 to measure QPS and recall; keep all other search parameters fixed. IVF-PQ uses the nprobe sweep specified below instead.
+- **Final iteration range:** From that sweep, keep the points at which Recall@10 is at least 0.6. The table lists the first iteration count at which each system reaches this recall; reported points run from that iteration through 500. MNIST8M is the exception: every measured point already has Recall@10 above 0.8, so its curves start at 0.85 instead. An em dash means the system is not reported on that dataset.
 
-## IVF-PQ Build and Search Parameters
+| Dataset | SONG | GGNN | GANNS | CAGRA | BANG | DiskANN | PilotANN | HNSW |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| SIFT1M | 30 | 15 | 10 | 12 | 10 | 10 | 10 | 10 |
+| DEEP1M | 20 | 14 | 12 | 12 | 10 | 10 | 10 | 10 |
+| DEEP10M | 18 | 20 | 10 | 12 | 10 | 10 | 10 | 10 |
+| DEEP100M | — | 20 | — | 30 | 12 | 12 | — | — |
+| GIST | 20 | 15 | 12 | 16 | 12 | 10 | 10 | 12 |
+| GLOVE200 | 50 | 25 | 20 | 40 | 30 | 10 | — | 12 |
+| MNIST8M | 26 | 20 | 20 | 10 | 10 | 10 | 10 | 10 |
+| NYTIMES | 38 | 20 | 30 | 20 | 20 | 70 | — | 10 |
 
-### Build
+# IVF-PQ Build and Search Parameters
+
+## Build
 
 The selected configurations for cuVS IVF-PQ and Faiss IVF-PQ are listed below. `nlist` is the number of coarse clusters, and `m` is the number of PQ subquantizers. MNIST8M uses the same configuration as DEEP1M for each library.
 
@@ -49,7 +61,7 @@ The selected configurations for cuVS IVF-PQ and Faiss IVF-PQ are listed below. `
 - **Configuration selection:** Select one `(nlist, m)` per dataset and library using the preliminary `k = 100` nprobe sweeps. Prefer the configuration with the highest Recall@10.
 - **Other build parameters:** Use the defaults of the corresponding implementation.
 
-### Search
+## Search
 
 - **Search target:** Set `k = 10`; reuse the selected indexes without rebuilding them.
 - **Sweep parameter:** Vary only `nprobe`, keeping the selected `(nlist, m)` and other search parameters fixed. Use the following candidate values:

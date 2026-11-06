@@ -17,7 +17,7 @@ source "$(cd "$(dirname "$0")" && pwd)/common.sh"
 K=${K:-10}
 THREADS=${THREADS:-48}
 CACHE_NODES=${CACHE_NODES:-1000}
-L_LIST=${L_LIST:-$(seq 10 2 300)}
+L_LIST=${L_LIST:-$(seq 10 2 500)}
 DISKANN_APPS=${DISKANN_APPS:-$W/build/diskann-instrumented/apps}
 DATASETS=("$@")
 [ ${#DATASETS[@]} -gt 0 ] || DATASETS=(sift1M gist glove200 nytimes deep1M deep10M deep100M mnist8M)

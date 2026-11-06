@@ -12,5 +12,5 @@ DEGREES=${DEGREES:-64 128}
 for D in $DEGREES; do
   graph=$INDEX_DIR/sift1M/ganns/eqdeg-d$D/graph.nsw
   [[ -f $graph ]] || bash "$EQDEG/build_indexes.sh" ganns sift1M "$D"
-  DEGREE=$D K=10 WARMUP_RUNS=1 TIMED_RUNS=3 E_LIST="$(seq 10 2 300)" bash "$EQDEG/run_ganns.sh" sift1M
+  DEGREE=$D K=10 WARMUP_RUNS=1 TIMED_RUNS=3 E_LIST="$(seq 10 2 500)" bash "$EQDEG/run_ganns.sh" sift1M
 done

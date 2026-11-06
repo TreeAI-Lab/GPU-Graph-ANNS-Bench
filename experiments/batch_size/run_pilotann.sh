@@ -18,12 +18,12 @@ export LD_LIBRARY_PATH=$ENV_PILOT/lib:${LD_LIBRARY_PATH:-}
 mkdir -p "$OUT/pilotann"
 gt=$OUT/gt.k10.ibin
 [[ -f $gt ]] || "$PY" "$QR/gt_top10.py" "$DATA_DIR/sift1M/gt.ibin" "$gt"
-seq 10 2 300 > "$OUT/it_10_300_s2.txt"
+seq 10 2 500 > "$OUT/it_10_500_s2.txt"
 set +e
 # shellcheck disable=SC2086
 clear_caches
 "$ENV_PILOT/bin/python" -u "$BENCH/src/search/pilotann/pilotann_batch.py" --ckpt "$CKPT" \
-  --query "$DATA_DIR/sift1M/query.fbin" --gt "$gt" --it-file "$OUT/it_10_300_s2.txt" \
+  --query "$DATA_DIR/sift1M/query.fbin" --gt "$gt" --it-file "$OUT/it_10_500_s2.txt" \
   --out "$OUT/pilotann" --batches $BATCHES >"$OUT/pilotann_run.log" 2>&1
 rc=$?
 set -e

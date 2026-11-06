@@ -1,7 +1,7 @@
 #!/bin/bash
 # Batch-size sweep of BANG on SIFT1M (Figure 8).
 # Usage: bash experiments/batch_size/run_bang.sh [batch size ...]   (default: 1 10 100 1000 10000)
-# For every batch size bang_search searches the first <batch> queries for L = 10, 12, ..., 300,
+# For every batch size bang_search searches the first <batch> queries for L = 10, 12, ..., 500,
 # each L once as an untimed warm-up and then three times timed. QPS = batch / mean wall time of the three timed
 # bang_query calls, as printed by BANG ("Wall Clock Time", whole milliseconds).
 # Output: $OUT_DIR/batch_size/bang/<batch>/ (raw.log, sweep.tsv), $OUT_DIR/batch_size/bang/run.log
@@ -29,7 +29,7 @@ for bs in $BATCHES; do
   set +e
   : >"$OUT/$bs/raw.log"
   rc=0
-  for L in $(seq 10 2 300); do
+  for L in $(seq 10 2 500); do
     clear_caches
     "$BANG_DIR/bang_search" "$PREFIX" "$DATA_DIR/sift1M/query.fbin" "$gt" "$bs" 10 float l2 "$L" >>"$OUT/$bs/raw.log" 2>&1 || rc=$?
   done

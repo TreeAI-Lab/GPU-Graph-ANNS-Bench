@@ -16,8 +16,8 @@ OUT=$OUT_DIR/batch_size
 PY_CAGRA=$ENV_CAGRA/bin/python
 LOG=$OUT/run.log
 mkdir -p "$OUT"
-ITF=$OUT/it_10_300_s2.txt
-seq 10 2 300 > "$ITF"
+ITF=$OUT/it_10_500_s2.txt
+seq 10 2 500 > "$ITF"
 ITS=$ITF
 
 read -r data n dim deg nq ctag gtag atag stag shift <<<"$(cfg_graph sift1M)"
