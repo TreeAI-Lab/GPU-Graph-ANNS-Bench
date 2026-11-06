@@ -20,9 +20,9 @@ BUILD_RUNS=${BUILD_RUNS:-5}
 GGNN_TAU=${GGNN_TAU:-0.3}                    # tau_build
 SONG_L=${SONG_L:-$(build_l_of "$DEG")}       # construction L of SONG
 GANNS_E=${GANNS_E:-$(build_l_of "$DEG")}     # candidate list size e of GANNS, the L of SONG
-VAMANA_L=${VAMANA_L:-100}                    # build_disk_index -L default; -B and -M are memory budgets
-VAMANA_B=${VAMANA_B:-10}
-VAMANA_M=${VAMANA_M:-10}
+VAMANA_L=${VAMANA_L:-$(build_l_of "$DEG")}  # construction candidate list, shared with SONG
+VAMANA_B=${VAMANA_B:-80}                     # search memory budget, GB
+VAMANA_M=${VAMANA_M:-80}                     # build memory budget, GB
 PILOT_ALGO=${PILOT_ALGO:-nsg}      # PilotANN graph type
 DISKANN_APPS=${DISKANN_APPS:-$W/build/diskann-instrumented/apps}  # third_party/build/diskann_instrumented.sh
 

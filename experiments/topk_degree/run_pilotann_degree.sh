@@ -1,6 +1,6 @@
 #!/bin/bash
 # Figure 12, PilotANN curves: PilotANN on sift1M with NSG graphs of degree 64 and 128
-# (efConstruction 80, d_principle 192, sample ratio 0.25), then an ef sweep of the first 10,000
+# (efConstruction 80, d_principle 96, sample ratio 0.25), then an ef sweep of the first 10,000
 # queries (per ef one untimed warm-up run and three timed runs, means reported, k = 10).
 # Degree 128 needs the larger traversal buffer of third_party/patches/pilotann.patch
 # (BUFFER_SIZE 512 >= beam width 4 x degree 128).
@@ -8,7 +8,7 @@
 #
 # Usage: bash experiments/topk_degree/run_pilotann_degree.sh
 # Outputs:
-#   $INDEX_DIR/sift1M/pilotann/nsg<D>_efc80_dp192_r0.25/index.pt
+#   $INDEX_DIR/sift1M/pilotann/nsg<D>_efc80_dp96_r0.25/index.pt
 #   $OUT_DIR/topk_degree/pilotann/degree<D>/{build.log,run.log,params.txt,load_timing.tsv,sweep.tsv,it_batches.tsv}
 set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/../../env.sh"
@@ -16,7 +16,7 @@ source "$(cd "$(dirname "$0")" && pwd)/../../env.sh"
 PILOT=$BENCH/src/search/pilotann
 DEGREES=${DEGREES:-64 128}
 EFC=80
-DP=192
+DP=96
 RATIO=0.25
 GTYPE=nsg
 K=10

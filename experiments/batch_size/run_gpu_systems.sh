@@ -52,7 +52,7 @@ run_one() {
       "$BIN_DIR/ggnn_resident_search" \
         --base "$D/base.fvecs" --graph-dir "$G/ggnn/$gtag" \
         --query "$D/query.fbin" --gt "$gt" --out "$out" \
-        --k-build "$deg" --k-query 10 --tau-query 0.5 \
+        --k-build "$deg" --k-query 10 --tau-query 1 \
         --batch-size "$bs" --gpu 0 --it-file "$ITF" \
         > >(tee "$out/run.log") 2>&1
       ;;

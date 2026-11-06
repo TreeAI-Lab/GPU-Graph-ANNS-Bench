@@ -18,6 +18,7 @@
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 source "$HERE/../../env.sh"
+source "$HERE/../qps_recall/datasets.sh"
 [[ -n "${PRE_SLEEP_S:-}" ]] && sleep "$PRE_SLEEP_S"
 DS=${1:?dataset}
 SYS=${2:?system}
@@ -30,10 +31,10 @@ GT=$OUT_DIR/profiling/gt/${DS}_k10.ibin   # top-10 ground truth; GANNS needs exa
 case "$DS" in
   deep1M) N=1000000; DIM=96; DEG=32; SHIFT=6; NQ=10000; BANG_R=32
           CTAG=gd32_igd64_it20; GTAG=k32_tau0.3_r2; ATAG=k16_m60; STAG=fd32_shift6_deg16
-          PTAG=nsg32_efc80_dp192_r0.25; PCKPT=${PILOT_CKPT_DEEP1M:-} ;;
+          PTAG=nsg32_efc80_dp96_r0.25; PCKPT=${PILOT_CKPT_DEEP1M:-} ;;
   gist)   N=1000000; DIM=960; DEG=128; SHIFT=8; NQ=1000; BANG_R=128
           CTAG=gd128_igd256_it20; GTAG=k128_tau0.3_r2; ATAG=k64_m180; STAG=fd128_shift8_deg64
-          PTAG=nsg128_efc80_dp192_r0.25; PCKPT=${PILOT_CKPT_GIST:-} ;;
+          PTAG=nsg128_efc80_dp96_r0.25; PCKPT=${PILOT_CKPT_GIST:-} ;;
   *) echo "unknown dataset $DS" >&2; exit 1 ;;
 esac
 # Graphs of Figure 7 (experiments/qps_recall/build_graphs.sh); CAGRA uses the index with its dataset attached that
@@ -42,7 +43,8 @@ SONG_GRAPH=$INDEX_DIR/$DS/song/$STAG/bfsg.graph
 GGNN_GRAPH=$INDEX_DIR/$DS/ggnn/$GTAG
 GANNS_GRAPH=$INDEX_DIR/$DS/ganns/$ATAG/graph.nsw
 CAGRA_INDEX=$INDEX_DIR/$DS/cagra/$CTAG/_search_cache/index_with_dataset.cagra
-BANG_PREFIX=$INDEX_DIR/$DS/bang/r${BANG_R}_l100_b4/bang_format/$DS   # build_bang_graphs.sh
+BANG_BUILD_L=$(build_l "$BANG_R")
+BANG_PREFIX=$INDEX_DIR/$DS/bang/r${BANG_R}_l${BANG_BUILD_L}_b80/bang_format/$DS   # build_bang_graphs.sh
 BANG_BIN=$W/build/bang/r$BANG_R/bang_search                          # third_party/build/bang.sh <R>
 # The PilotANN index of Figure 7 (experiments/qps_recall/build_graphs.sh); PILOT_CKPT_DEEP1M and PILOT_CKPT_GIST
 # point to another copy
@@ -65,7 +67,7 @@ case "$SYS" in
       --out "$OUT" --batch-size 10000 --it-file "$OUT/it_point.txt" --k 10 --precision "$PREC" ;;
   ggnn)
     "$BIN_DIR/ggnn_${DS}_$PREC" --base "$D/base.fvecs" --graph-dir "$GGNN_GRAPH" \
-      --query "$D/query.fbin" --gt "$GT" --out "$OUT" --k-build "$DEG" --k-query 10 --tau-query 0.5 \
+      --query "$D/query.fbin" --gt "$GT" --out "$OUT" --k-build "$DEG" --k-query 10 --tau-query 1 \
       --batch-size 10000 --gpu 0 --it-file "$OUT/it_point.txt" ;;
   ganns)
     "$BIN_DIR/ganns_${DS}_$PREC" --base "$D/base.fvecs" --graph "$GANNS_GRAPH" \

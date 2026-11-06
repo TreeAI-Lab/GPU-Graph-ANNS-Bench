@@ -1,30 +1,36 @@
 # Equal-Degree Hyperparameter Settings
 
+These settings follow the VLDB Journal manuscript, Section 5, Experimental Settings
+(`vldb-journal/section/sec5-experiments.tex` in the manuscript repository). They apply to the
+equal-degree comparison; the comparable recall-throughput construction experiment and parameter
+sensitivity experiments specify their own configurations.
+
 - **Shared construction constraint:** Enforce the same maximum graph degree for all algorithms, including those whose degree is unfixed by design. 
 
 | Dataset | Maximum graph degree |
 | --- | --- |
-| SIFT | 32 |
+| SIFT1M | 32 |
 | GIST | 128 |
-| GLOVE | 96 |
-| NYTIMES | 64 |
-| MNIST | 128 |
+| GloVe200 | 96 |
+| NYTimes | 64 |
+| MNIST8M | 128 |
 | DEEP1M | 32 |
 | DEEP10M | 64 |
 | DEEP100M | 32 |
 
 - **SONG:** Set the priority queue size to L = 60, 120, 150, and 180 for graph degrees of 32, 64, 96, and 128, respectively.
-- **GGNN:** Fix the threshold parameter at τ = 0.3.
+- **GGNN:** Fix the construction slack at τ = 0.3 and use Layer = 4.
 - **GANNS:** Use NSW construction and the same L schedule as SONG.
 - **CAGRA:** Use PQ-based construction for DEEP100M and NN-Descent construction for all other datasets.
-- **BANG:** Use the default DiskANN settings.
-- **PilotANN:** Use NSG construction.
+- **BANG:** Use the same construction settings as DiskANN, including the degree-dependent L schedule and the 80 GB budget.
+- **PilotANN:** Use NSG construction with `sample_ratio = 0.25` and `d_principle = 96`.
 - **HNSW:** Use the same L schedule as SONG.
-- **DiskANN:** Use the same L as SONG, B = 80, M = 80
+- **DiskANN:** Use the same L schedule as SONG and an 80 GB memory budget (`B = 80`, `M = 80`).
 - **Other parameters:** Unless otherwise specified, use the defaults provided by the original implementations.
 
 - **Search target:** Retrieve the top-10 nearest neighbors.
-- **Search evaluation (graph indexes):** Vary only the number of search iterations from 10 to 500, inclusive, in increments of 2 to measure QPS and recall; keep all other search parameters fixed. IVF-PQ uses the nprobe sweep specified below instead.
+- **Search evaluation (graph indexes):** Vary only the number of search iterations in [10, 500] to measure QPS and Recall@10; keep all other search parameters fixed. Set the search width to 1. For the GPU algorithms, set the batch size to the number of queries (10,000, except 1,000 for GIST). For CAGRA warp splitting, set the team size to 8. The manuscript does not specify a uniform iteration step; `qps_recall/run_graph_systems.sh` uses a step of 2, while the target-recall settings are listed separately in `recall_settings.md`. IVF-PQ uses the nprobe sweep specified below instead.
+- **Target recall:** For the standard graph comparisons at 0.90 or 0.95 Recall@10, select the iteration setting to reach the target while keeping the other search settings unchanged. Loading, top-K, and batch-size experiments use the workload variations described in the manuscript.
 - **Final iteration range:** From that sweep, keep the points at which Recall@10 is at least 0.6. The table lists the first iteration count at which each system reaches this recall; reported points run from that iteration through 500. MNIST8M is the exception: every measured point already has Recall@10 above 0.8, so its curves start at 0.85 instead. An em dash means the system is not reported on that dataset.
 
 | Dataset | SONG | GGNN | GANNS | CAGRA | BANG | DiskANN | PilotANN | HNSW |
@@ -42,7 +48,7 @@
 
 ## Build
 
-The selected configurations for cuVS IVF-PQ and Faiss IVF-PQ are listed below. `nlist` is the number of coarse clusters, and `m` is the number of PQ subquantizers. MNIST8M uses the same configuration as DEEP1M for each library.
+Test configurations with `nlist` from 2,048 to 131,072 and `m` from 16 to 48, using 8 bits per subquantizer. The selected configurations for cuVS IVF-PQ and Faiss IVF-PQ are listed below. `nlist` is the number of coarse clusters, and `m` is the number of PQ subquantizers. MNIST8M uses the same configuration as DEEP1M for each library.
 
 | Dataset | cuVS nlist | cuVS m | Faiss nlist | Faiss m |
 | --- | --- | --- | --- | --- |

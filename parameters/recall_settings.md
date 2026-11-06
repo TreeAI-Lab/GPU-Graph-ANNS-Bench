@@ -1,6 +1,8 @@
-# Search iteration
+# Search Settings at Target Recall
 
-For all experimental results reported at 90% or 95% Recall@10, the target recall was achieved by adjusting the number of GPU iterations. The corresponding iteration settings used during search are listed below.
+The tables below record the search settings for the standard graph comparisons at 90% and 95% Recall@10 on SIFT1M, DEEP1M, DEEP10M, and GIST. For each method and dataset, the search effort is selected within [10, 500] to reach the target recall. Index construction and the remaining search configuration follow [main_exp_settings.md](main_exp_settings.md).
+
+The graph-quality comparison (each system's own search) and the search-time breakdown use the 90% Recall@10 points. The data-size scalability comparison and the batch-size and latency comparison use the 95% Recall@10 points. The settings are listed below.
 
 ## 95% Recall@10
 
@@ -12,8 +14,6 @@ For all experimental results reported at 90% or 95% Recall@10, the target recall
 | GIST | 80 | 131 | 78 | 57 | 52 | 56 | 74 | 127 |
 
 ## 90% Recall@10
-
-The path-length table is the total over the query set. GIST has 1,000 queries and the other three datasets have 10,000, so the iteration run per query is that total divided by the query count, rounded to an integer.
 
 | Dataset | SONG | GGNN | GANNS | CAGRA | BANG | DiskANN | PilotANN | HNSW |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

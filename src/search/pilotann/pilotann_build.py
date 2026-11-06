@@ -5,7 +5,7 @@ ef_construct is not exposed by IndexStaged, so the default argument of graph_ini
 
 Used for the PilotANN indexes of Figures 7, 8 and 12.
 Usage (environment $ENV_PILOT):
-  python src/search/pilotann/pilotann_build.py --base base.fbin --ckpt out.pt --nn 64 [--efc 80] [--dp 192]
+  python src/search/pilotann/pilotann_build.py --base base.fbin --ckpt out.pt --nn 64 [--efc 80] [--dp 96]
       [--ratio 0.25] [--gtype nsg]
 """
 import argparse
@@ -25,7 +25,7 @@ def main() -> None:
     ap.add_argument("--ckpt", type=Path, required=True, help="output checkpoint (.pt)")
     ap.add_argument("--nn", type=int, required=True, help="graph degree (n_neighbors)")
     ap.add_argument("--efc", type=int, default=80, help="ef_construct of the graph builder")
-    ap.add_argument("--dp", type=int, default=192, help="d_principle, capped at the dimension")
+    ap.add_argument("--dp", type=int, default=96, help="d_principle, capped at the dimension")
     ap.add_argument("--ratio", type=float, default=0.25, help="sample_ratio of the GPU subgraph")
     ap.add_argument("--gtype", default="nsg", help="graph method: nsg or nsw")
     args = ap.parse_args()

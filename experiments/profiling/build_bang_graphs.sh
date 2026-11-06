@@ -1,7 +1,7 @@
 #!/bin/bash
 # BANG graphs of Table 9 and the BANG programs for them.
 #   1. DiskANN build_disk_index (Vamana graph with PQ), R = the maximum degree D of the dataset:
-#      DEEP1M 32, GIST 128; L = 100; -B 4 -M 16 (required by build_disk_index); QD not given, so DiskANN derives
+#      DEEP1M 32 (L = 60), GIST 128 (L = 180); -B 80 -M 80; QD not given, so DiskANN derives
 #      the PQ code size from B (96 bytes per vector for DEEP1M, 512 for GIST).
 #   2. disk_index_to_bang.py: <ds>_disk.index -> <ds>_disk.bin and <ds>_disk_metadata.bin (GIST nodes span two
 #      sectors, which BANG's own bang_preprocess.py cannot read).
@@ -9,16 +9,17 @@
 #      bang_format/, with links to the other three files.
 #   4. third_party/build/bang.sh <R>: BANG compiled with MAX_R = R.
 # usage: bash build_bang_graphs.sh [deep1M] [gist]     (no argument: both)
-# output: $INDEX_DIR/<ds>/bang/r<R>_l100_b4/ (DiskANN files, build.log, convert.log) and its bang_format/<ds>_*,
+# output: $INDEX_DIR/<ds>/bang/r<R>_l<L>_b80/ (DiskANN files, build.log, convert.log) and its bang_format/<ds>_*,
 #   the prefix that run_point.sh passes to BANG; $W/build/bang/r<R>/bang_search
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 source "$HERE/../../env.sh"
+source "$HERE/../qps_recall/datasets.sh"
 BDI=$W/build/diskann/apps/build_disk_index   # third_party/build/diskann.sh
 TOOLS=$BENCH/src/graph_tools
 PY=${PY:-$ENV_BUILD/bin/python}
 THREADS=${THREADS:-36}
-L=100; B=4; M=16
+B=80; M=80
 export LD_LIBRARY_PATH=$ENV_BUILD/lib:${LD_LIBRARY_PATH:-}
 DATASETS=("$@")
 [[ ${#DATASETS[@]} -gt 0 ]] || DATASETS=(deep1M gist)
@@ -28,6 +29,7 @@ for ds in "${DATASETS[@]}"; do
     gist) DIM=960; R=128 ;;
     *) echo "unknown dataset $ds (deep1M gist)" >&2; exit 1 ;;
   esac
+  L=$(build_l "$R")
   O=$INDEX_DIR/$ds/bang/r${R}_l${L}_b${B}
   mkdir -p "$O/bang_format"
   echo "bang $ds R=$R build $(date '+%F %T')"

@@ -8,7 +8,7 @@
 // usage:
 //   ggnn_resident_search \
 //     --base base.fvecs --graph-dir <dir with part_0.ggnn> --query query.fbin \
-//     --out OUT --k-build 32 --k-query 10 --tau-query 0.5 --max-iterations 55 \
+//     --out OUT --k-build 32 --k-query 10 --tau-query 1 --max-iterations 55 \
 //     --batch-size 10000 --gpu 0 [--gt gt.k10.ibin] [--it-file it_schedule.txt] [--shard-size N]
 #include <ggnn/base/ggnn.cuh>
 
@@ -96,7 +96,7 @@ struct Args {
   std::string base, graph_dir, query, out, gt;
   uint32_t k_build = 32;
   uint32_t k_query = 10;
-  float tau_query = 0.5f;
+  float tau_query = 1.0f;
   uint32_t max_iterations = 55;
   uint32_t batch_size = 10000;
   int gpu = 0;

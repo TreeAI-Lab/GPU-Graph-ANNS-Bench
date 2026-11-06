@@ -362,6 +362,7 @@ int main(int argc, char** argv) {
     sp.max_iterations = static_cast<size_t>(args.max_iterations);
     sp.itopk_size = static_cast<size_t>(args.itopk);
     sp.search_width = static_cast<size_t>(args.search_width);
+    sp.team_size = 8;
 
     const int bs = args.batch;
     const int64_t dim = query.dim;
@@ -439,6 +440,7 @@ int main(int argc, char** argv) {
         sp.max_iterations = static_cast<size_t>(it);
         sp.itopk_size = static_cast<size_t>(itopk);
         sp.search_width = static_cast<size_t>(args.search_width);
+        sp.team_size = 8;
         auto wall0 = std::chrono::steady_clock::now();
         CUDA_CHECK(cudaEventRecord(ev_h0, stream));
         CUDA_CHECK(cudaMemcpyAsync(d_q.data_handle(), h_q,

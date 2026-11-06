@@ -4,8 +4,8 @@
 Loads the index once (rebuilding it with the dataset if it is graph-only, see cagra_py_common.py), takes the first
 batch of queries, and for every max_iterations value in --it-file runs the search once as an untimed warm-up and
 then TIMED_RUNS = 3 times timed. itopk_size = max(32, k, it) rounded up to a multiple of 32, or --fixed-itopk for
-every it when it is given (Figure 13); --itopk-size is not used by the sweep. --team-size 0 lets cuVS choose the
-team size.
+every it when it is given (Figure 13); --itopk-size is not used by the sweep. Team size defaults to 8;
+--team-size 0 lets cuVS choose the team size.
 Times: query H2D, cagra.search and top-k D2H with CUDA events; wall_ms is the host time around the three steps.
 Outputs in --out: sweep.tsv (per it the means over the timed runs, qps = nq / mean wall_ms, then the sample standard
 deviations kernel_ms_std and wall_ms_std and n_timed), it_batches.tsv (every run), gpu_mem_cuda.tsv,
@@ -69,7 +69,7 @@ def main():
     ap.add_argument("--itopk-size", type=int, default=64)
     ap.add_argument("--search-width", type=int, default=1)
     ap.add_argument("--fixed-itopk", type=int, default=0, help="itopk_size for every it; 0: itopk follows it")
-    ap.add_argument("--team-size", type=int, default=0, help="threads per distance; 0: chosen by cuVS")
+    ap.add_argument("--team-size", type=int, default=8, help="threads per distance; default 8; 0: chosen by cuVS")
     ap.add_argument("--gpu", type=int, default=0)
     ap.add_argument("--cache-dir", default="")
     ap.add_argument("--graph-degree", type=int, default=32)

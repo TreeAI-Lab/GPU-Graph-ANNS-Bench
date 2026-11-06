@@ -101,14 +101,22 @@ D = 32, 64, 96 and 128.
 | System | Build parameters |
 |---|---|
 | SONG | FIXED_DEGREE D, construction L |
-| GGNN | KBuild D, tau_build 0.3 |
+| GGNN | KBuild D, tau_build 0.3, Layer 4 |
 | GANNS | NSW, d_min D/2, candidate list L |
 | CAGRA | graph degree D, intermediate degree 2D, NN-descent; IVF-PQ graph construction on DEEP100M |
-| BANG | DiskANN disk index with R = D and the DiskANN defaults (L 100, alpha 1.2) |
-| PilotANN | NSG with D neighbors |
+| BANG | Same construction settings as DiskANN: R = D, construction L, 80 GB budget |
+| PilotANN | NSG with D neighbors, sample_ratio 0.25, d_principle 96 |
 | HNSW | Faiss IndexHNSWFlat, M = D/2, efConstruction L |
-| DiskANN disk index | `build_disk_index`, R = D, defaults (L 100, alpha 1.2) |
+| DiskANN disk index | `build_disk_index`, R = D, construction L, 80 GB budget (B = 80, M = 80) |
 | IVF-PQ | nlist 2,048 to 131,072, m 16 to 48; per dataset and library the combination with the highest Recall@10 |
+
+The DiskANN/BANG builders use the degree-dependent L schedule and 80 GB memory budgets by default.
+PilotANN uses `d_principle = 96` and `sample_ratio = 0.25`, and the CAGRA recall-QPS drivers use team size 8.
+
+For the standard graph recall-QPS comparisons, vary only the search iteration setting in [10, 500], with
+search width 1 and CAGRA team size 8. Each GPU batch contains the full query set (10,000 queries, except 1,000
+on GIST). For target recalls of 0.90 and 0.95, select the iteration setting while keeping the other search
+parameters fixed. See `parameters/main_exp_settings.md` and `parameters/recall_settings.md` for details.
 
 ## Experiments
 
@@ -256,19 +264,28 @@ experiments above; the header of each plot script names its input file.
 
 ## Measurement
 
-All experiments except the hardware-counter ones ran on one server with Ubuntu 22.04, an Intel Xeon Gold 6348 CPU
-and one NVIDIA A800 80GB PCIe GPU. Tables 9 and 10 and Figure 14 ran on an NVIDIA A10 24GB, because reading
-performance counters requires administrator rights on the GPU.
+All experiments except the profiling subsection ran on one server with Ubuntu 22.04 LTS, an Intel Xeon Gold 6348
+CPU at 2.60 GHz and one NVIDIA A800 GPU with 80 GB HBM2e memory. The manuscript specifies CUDA 12.4, `-O3`, and
+benchmark drivers in C++17 and CUDA. No other job runs on the server during measurement. Base vectors and the
+index are copied from pageable host memory, and query batches from pinned memory. Tables 9 and 10 and Figure 14
+ran on a virtual machine with an NVIDIA A10 and 24 GB GDDR6, because the driver administrator rights required to
+read performance counters were unavailable on the A800 server.
 
 Every search returns the top 10 neighbors unless K is varied, and Recall@10 is the fraction of the 10 true nearest
-neighbors found. Every search process starts after `src/common/clear_caches.sh` has emptied the host page cache, and
+neighbors found. All queries of a dataset form one batch, except in the loading, top-K, and batch-size experiments.
+Every search process starts after `src/common/clear_caches.sh` has emptied the host page cache, and
 with empty device memory, because it is a new process. A process searches one setting, or, when the index stays
 resident in device memory, all settings of one sweep. Each setting (iteration count, L, ef, nprobe, batch size,
 operating point) is searched once as an untimed warm-up and then timed three times; the mean of the three timed runs
-is reported. For the pure GPU indexes (SONG, GGNN, GANNS, CAGRA, IVF-PQ, brute force) QPS is the number of queries
+is reported. The manuscript's Experimental Settings describes end-to-end latency from host query receipt to the
+return of top-K results to the host. Its Search Efficiency subsection and Figure 7 explicitly use a different
+measure: for the pure GPU indexes (SONG, GGNN, GANNS, CAGRA, IVF-PQ, brute force), QPS is the number of queries
 divided by the mean search kernel time; for BANG, PilotANN and the CPU indexes it uses the mean time of the whole
 search call. Figure 8 uses the wall time of the whole batch for every system, including the query copy and the result
-copy. Figure 6 times every batch of the stream once and leaves out the first batch as warm-up.
+copy. Figure 6 includes query uploads, search, and result downloads; it reports average query time both with
+and without the one-time vector and index loading cost. Its scripts time every batch of the stream once and
+leave out the first batch as warm-up. Query processing time excludes the waiting time needed to form a batch.
+GGNN searches DEEP100M partition by partition, so its Figure 7 curve does not represent a fully GPU-resident index.
 
 ## License
 

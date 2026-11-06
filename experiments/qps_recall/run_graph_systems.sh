@@ -74,7 +74,7 @@ run_one() {
         --index "$G/cagra/$ctag/index.cagra" \
         --base "$D/base.fbin" --query "$D/query.fbin" --gt "$gt" \
         --out "$out" --batch-size "$BATCH" --it-file "$ITF" \
-        --k 10 --itopk-size 64 --search-width 1 --gpu 0 \
+        --k 10 --itopk-size 64 --search-width 1 --team-size 8 --gpu 0 \
         --graph-degree "$deg" --intermediate-graph-degree "$((deg * 2))" --nn-descent-niter 20 \
         --metric "$cagra_metric" \
         --cache-dir "$G/cagra/$ctag/_search_cache" \
@@ -84,7 +84,7 @@ run_one() {
       "$BIN_DIR/ggnn_resident_search" \
         --base "$D/base.fbin" --graph-dir "$G/ggnn/$gtag" \
         --query "$D/query.fbin" --gt "$gt" --out "$out" \
-        --k-build "$deg" --k-query 10 --tau-query 0.5 \
+        --k-build "$deg" --k-query 10 --tau-query 1 \
         --batch-size "$BATCH" --gpu 0 --it-file "$ITF" \
         --shard-size 20000000 \
         > >(tee "$out/run.log") 2>&1
@@ -93,7 +93,7 @@ run_one() {
       "$BIN_DIR/ggnn_resident_search" \
         --base "$D/base.fvecs" --graph-dir "$G/ggnn/$gtag" \
         --query "$D/query.fbin" --gt "$gt" --out "$out" \
-        --k-build "$deg" --k-query 10 --tau-query 0.5 \
+        --k-build "$deg" --k-query 10 --tau-query 1 \
         --batch-size "$BATCH" --gpu 0 --it-file "$ITF" \
         > >(tee "$out/run.log") 2>&1
       ;;

@@ -4,7 +4,7 @@
 // usage:
 //   ggnn_<dataset>_<fp32|fp16> \
 //     --base base.fvecs --graph-dir <dir with part_0.ggnn> --query query.fbin \
-//     --out OUT --k-build 32 --k-query 10 --tau-query 0.5 --max-iterations 55 \
+//     --out OUT --k-build 32 --k-query 10 --tau-query 1 --max-iterations 55 \
 //     --batch-size 10000 --gpu 0 [--gt gt.ibin] [--it-file its.txt]
 //   With --it-file only the first batch is searched; per iteration count one untimed warm-up run, then three
 //   timed runs (kTimedRuns). OUT/sweep.tsv holds the means over the timed runs (qps = nq / mean wall time) and
@@ -112,7 +112,7 @@ struct Args {
   std::string base, graph_dir, query, out, gt;
   uint32_t k_build = 32;
   uint32_t k_query = 10;
-  float tau_query = 0.5f;
+  float tau_query = 1.0f;
   uint32_t max_iterations = 55;
   uint32_t batch_size = 10000;
   int gpu = 0;

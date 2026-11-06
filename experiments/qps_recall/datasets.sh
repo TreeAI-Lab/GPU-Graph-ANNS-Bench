@@ -34,13 +34,13 @@ cfg_graph() {
 # BANG on a DiskANN disk index: R L M B QD (build_disk_index -R -L -M -B --QD, PQ bytes 0)
 cfg_bang() {
   case "$1" in
-    sift1M)   echo "32 100 16 4 32" ;;
-    deep1M)   echo "32 100 16 4 32" ;;
-    deep10M)  echo "64 100 32 16 32" ;;
-    gist)     echo "128 100 32 8 64" ;;
-    glove200) echo "96 100 40 4 40" ;;
-    nytimes)  echo "64 100 32 4 32" ;;
-    mnist8M)  echo "128 100 32 8 64" ;;
+    sift1M)   echo "32 60 80 80 32" ;;
+    deep1M)   echo "32 60 80 80 32" ;;
+    deep10M)  echo "64 120 80 80 32" ;;
+    gist)     echo "128 180 80 80 64" ;;
+    glove200) echo "96 150 80 80 40" ;;
+    nytimes)  echo "64 120 80 80 32" ;;
+    mnist8M)  echo "128 180 80 80 64" ;;
     *) echo "no BANG settings for $1" >&2; return 1 ;;
   esac
 }
@@ -48,11 +48,11 @@ cfg_bang() {
 # PilotANN IndexStaged: graph_method n_neighbors ef_construct d_principle sample_ratio
 cfg_pilotann() {
   case "$1" in
-    sift1M)  echo "nsg 32 80 192 0.25" ;;
-    deep1M)  echo "nsg 32 80 192 0.25" ;;
-    deep10M) echo "nsg 64 80 192 0.25" ;;
-    gist)    echo "nsg 128 80 192 0.25" ;;
-    mnist8M) echo "nsg 128 80 192 0.25" ;;
+    sift1M)  echo "nsg 32 80 96 0.25" ;;
+    deep1M)  echo "nsg 32 80 96 0.25" ;;
+    deep10M) echo "nsg 64 80 96 0.25" ;;
+    gist)    echo "nsg 128 80 96 0.25" ;;
+    mnist8M) echo "nsg 128 80 96 0.25" ;;
     *) echo "no PilotANN settings for $1" >&2; return 1 ;;
   esac
 }

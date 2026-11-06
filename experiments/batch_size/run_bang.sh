@@ -9,10 +9,12 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/../../env.sh"
 HERE=$(cd "$(dirname "$0")" && pwd)
 QR=$BENCH/experiments/qps_recall
+source "$QR/datasets.sh"
 
 BATCHES=${*:-"1 10 100 1000 10000"}
 BANG_DIR=${BANG_DIR:-$W/build/bang/r128}
-PREFIX=$INDEX_DIR/sift1M/bang/r32_l100/index
+read -r R BUILD_L M B QD <<<"$(cfg_bang sift1M)"
+PREFIX=$INDEX_DIR/sift1M/bang/$(bang_tag "$R" "$BUILD_L")/index
 OUT=$OUT_DIR/batch_size/bang
 PY=${PY:-$ENV_BUILD/bin/python}
 export OMP_NUM_THREADS=${OMP_NUM_THREADS:-14}

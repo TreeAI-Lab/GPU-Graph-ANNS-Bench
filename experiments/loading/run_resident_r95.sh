@@ -86,7 +86,7 @@ run_search() {
     ggnn)
       "$GGNN_BIN" \
         --base "$BASE_FVECS" --graph-dir "$GGNN_DIR" --query "$QUERY" --gt "$GT" \
-        --out "$out" --k-build "$deg" --k-query "$K" --tau-query 0.5 \
+        --out "$out" --k-build "$deg" --k-query "$K" --tau-query 1 \
         --max-iterations "$it" --batch-size "$BATCH" --gpu 0 "${mb[@]+"${mb[@]}"}"
       ;;
     ganns)

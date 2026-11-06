@@ -8,6 +8,7 @@
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 source "$HERE/../../env.sh"
+source "$HERE/../qps_recall/datasets.sh"
 DS=${1:?usage: bang_sweep.sh <deep1M|gist>}
 PY=${PY:-$ENV_BUILD/bin/python}
 case "$DS" in
@@ -16,13 +17,14 @@ case "$DS" in
   *) echo "unknown dataset $DS" >&2; exit 1 ;;
 esac
 OUT=$OUT_DIR/profiling/bang_sweep/$DS
+BUILD_L=$(build_l "$R")
 GT=$OUT_DIR/profiling/gt/${DS}_k10.ibin
 mkdir -p "$OUT" "$(dirname "$GT")"
 [[ -f "$GT" ]] || "$PY" "$HERE/make_gt_k10.py" "$DATA_DIR/$DS/gt.ibin" "$GT"
 : >"$OUT/raw.log"
 for L in $(seq 10 2 500); do
   OMP_NUM_THREADS=${OMP_NUM_THREADS:-14} "$W/build/bang/r$R/bang_search" \
-    "$INDEX_DIR/$DS/bang/r${R}_l100_b4/bang_format/$DS" "$DATA_DIR/$DS/query.fbin" "$GT" "$NQ" 10 float l2 "$L" \
+    "$INDEX_DIR/$DS/bang/r${R}_l${BUILD_L}_b80/bang_format/$DS" "$DATA_DIR/$DS/query.fbin" "$GT" "$NQ" 10 float l2 "$L" \
     >> "$OUT/raw.log" 2>&1
 done
 awk 'NF == 6 && $1 ~ /^[0-9]+$/ && $4 ~ /^[0-9.]+$/ && $6 ~ /^[0-9]+$/' "$OUT/raw.log" > "$OUT/sweep.tsv"

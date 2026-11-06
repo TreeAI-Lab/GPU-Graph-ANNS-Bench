@@ -161,9 +161,9 @@ int main(int argc, char** argv)
 
         printf("Start query with KBuild=%u, KQuery=%u, max_iterations=%u\n", KBuild, KQuery, max_iterations);
 
-        // tau_query = 0.5
+        // tau_query = 1
         auto query_start = std::chrono::high_resolution_clock::now();
-        const auto [indices, dists] = ggnn.query(d_query, KQuery, 0.5f, h_calc_count, h_path_count, h_fetch_time,
+        const auto [indices, dists] = ggnn.query(d_query, KQuery, 1.0f, h_calc_count, h_path_count, h_fetch_time,
                                                  h_filter_time, h_calc_time, h_update_time, max_iterations, measure);
         cudaDeviceSynchronize();
         auto query_end = std::chrono::high_resolution_clock::now();
