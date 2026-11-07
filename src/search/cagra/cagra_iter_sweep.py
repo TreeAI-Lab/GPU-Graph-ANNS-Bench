@@ -4,7 +4,7 @@
 Loads the index once (rebuilding it with the dataset if it is graph-only, see cagra_py_common.py), takes the first
 batch of queries, and for every max_iterations value in --it-file runs the search once as an untimed warm-up and
 then TIMED_RUNS = 3 times timed. itopk_size = max(32, k, it) rounded up to a multiple of 32, or --fixed-itopk for
-every it when it is given (Figure 13); --itopk-size is not used by the sweep. Team size defaults to 8;
+every it when it is given (Figure 14); --itopk-size is not used by the sweep. Team size defaults to 8;
 --team-size 0 lets cuVS choose the team size.
 Times: query H2D, cagra.search and top-k D2H with CUDA events; wall_ms is the host time around the three steps.
 Outputs in --out: sweep.tsv (per it the means over the timed runs, qps = nq / mean wall_ms, then the sample standard

@@ -1,4 +1,4 @@
-"""PilotANN QPS-recall sweep over ef_search (Figures 7 and 12).
+"""PilotANN QPS-recall sweep over ef_search (Figures 7 and 13).
 
 The first --batch queries of the query file are searched as one batch. For each ef the search runs once as an
 untimed warm-up and then TIMED_RUNS = 3 times timed, back to back. The wall time of a run covers the whole search:

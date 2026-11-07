@@ -3,7 +3,7 @@
 ef_construct is not exposed by IndexStaged, so the default argument of graph_init is replaced by
 --efc for both calls (full graph and sampled subgraph); the PilotANN sources are not changed.
 
-Used for the PilotANN indexes of Figures 7, 8 and 12.
+Used for the PilotANN indexes of Figures 7, 10, and 13.
 Usage (environment $ENV_PILOT):
   python src/search/pilotann/pilotann_build.py --base base.fbin --ckpt out.pt --nn 64 [--efc 80] [--dp 96]
       [--ratio 0.25] [--gtype nsg]

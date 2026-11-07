@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build the FP32 and FP16 search programs used for Tables 9 and 10 and Figure 14 into $BIN_DIR.
+# Build the FP32 and FP16 search programs used for Tables 7 and 8 and Figure 15 into $BIN_DIR.
 # The FP32 and FP16 programs of a system come from the same sources and differ only in one compile switch.
 # SONG, GANNS and GGNN are built from fresh copies of the pinned sources in $W/src with our patches applied.
 #

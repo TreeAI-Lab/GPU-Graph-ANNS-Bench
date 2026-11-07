@@ -1,4 +1,4 @@
-"""PilotANN batch-size sweep on SIFT1M (Figure 8).
+"""PilotANN batch-size sweep on SIFT1M (Figure 10).
 
 For every batch size the first <batch> queries are searched as one batch, for every ef of --it-file: one untimed
 warm-up search, then TIMED_RUNS = 3 timed searches. The wall time of a search covers the whole search: query

@@ -5,7 +5,7 @@
 #
 # PILOT_NO_KERNEL_STATS=1 builds the GPU traversal kernel without the search statistics of the patch (cycle
 # timers, counters and the barriers they need), so that it is the upstream kernel; experiments/profiling uses this
-# build for the hardware counters. The default build keeps them (Figures 7, 9 and 12).
+# build for the hardware counters. The default build keeps them (Figures 7, 8, and 13).
 #
 # Usage:  [PILOT_NO_KERNEL_STATS=1] [TORCH_CUDA_ARCH_LIST=8.6] bash third_party/build/pilotann.sh
 # Output: the pilot_ann package and its pilot_ann/extension module, importable from $ENV_PILOT
