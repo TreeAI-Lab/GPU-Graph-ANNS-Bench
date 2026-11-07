@@ -8,9 +8,9 @@ We evaluate the construction efficiency of seven representative algorithms acros
 
 For graph-based algorithms, we use maximum degrees d in {32, 64, 96, 128} and construction candidate-list sizes L in {60, 120, 150, 180} for the eight datasets to build graphs. See `parameters/main_settings.md`.
 
-Figure 8 breaks search time into candidate locating (CL), distance calculation (DC), and data structure maintenance (DM) on SIFT1M, DEEP1M, DEEP10M, and GIST. For BANG and PilotANN, it also separates the CPU and GPU portions. Figure 6(b) uses each system's own search.
+Figure 8 breaks search time into candidate locating (CL), distance calculation (DC), and data structure maintenance (DM) on SIFT1M, DEEP1M, DEEP10M, and GIST. For BANG and PilotANN, it also separates the CPU and GPU portions. Figure 6(b) uses each algorithm's own search.
 
-| System | Build parameters |
+| Algorithm | Build parameters |
 |---|---|
 | SONG | FIXED_DEGREE D, construction L |
 | GGNN | KBuild D, tau_build 0.3, Layer 4 |

@@ -4,7 +4,7 @@ Paper: Figure 6(a).
 
 ## Settings
 
-Unlike previous surveys that assess graph quality based on topological deviation from the exact KNNG, we adopt a search-oriented metric: the search iterations required to achieve a target accuracy. We run two groups of searches. The first searches every graph with Algorithm 1 from the same entry points, so differences come from the graph alone. The second uses each system's own search and is in `experiments/equal_degree/`. We evaluated this metric on four datasets with graph degrees fixed at 128 for GIST, 64 for DEEP10M, and 32 for DEEP1M and SIFT1M, respectively, measuring the search iterations when Recall@10 reaches 90%.
+Unlike previous surveys that assess graph quality based on topological deviation from the exact KNNG, we adopt a search-oriented metric: the search iterations required to achieve a target accuracy. We run two groups of searches. The first searches every graph with Algorithm 1 from the same entry points, so differences come from the graph alone. The second uses each algorithm's own search and is in `experiments/equal_degree/`. We evaluated this metric on four datasets with graph degrees fixed at 128 for GIST, 64 for DEEP10M, and 32 for DEEP1M and SIFT1M, respectively, measuring the search iterations when Recall@10 reaches 90%.
 
 ## Run
 

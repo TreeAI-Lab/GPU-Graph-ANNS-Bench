@@ -1,7 +1,7 @@
 # GPU Graph Vector Search Benchmark
 
 Code for the experiments of *An In-depth Survey and Experimental Study of GPU Graph Vector Search Algorithms*.
-The study evaluates six GPU graph-based approximate nearest neighbor search systems (SONG, GGNN, GANNS, CAGRA, and
+The study evaluates six GPU graph-based approximate nearest neighbor search algorithms (SONG, GGNN, GANNS, CAGRA, and
 the CPU-GPU hybrids BANG and PilotANN) against CPU graph indexes (HNSW in Faiss, the DiskANN disk index) and GPU
 non-graph indexes (IVF-PQ in Faiss and cuVS, brute force in cuVS), on eight datasets of up to 100 million vectors.
 
@@ -11,7 +11,7 @@ non-graph indexes (IVF-PQ in Faiss and cuVS, brute force in cuVS), on eight data
 |---|---|
 | `env.sh` | paths used by every script (work directory, datasets, indexes, outputs, conda environments) |
 | `environment/` | conda environments, with lock files of the exact packages used |
-| `third_party/` | pinned upstream commits of every system (`versions.tsv`), our patches, fetch and build scripts |
+| `third_party/` | pinned upstream commits of every algorithm (`versions.tsv`), our patches, fetch and build scripts |
 | `datasets/` | download, conversion and ground truth of the eight datasets |
 | `parameters/` | build and search settings of the experiments, including the selected parameters at the comparable point |
 | `src/` | our programs: search drivers, builders, the common searcher, baselines, FP16 variants, graph tools |
@@ -52,9 +52,9 @@ for ds in sift1M gist glove200 nytimes deep1M deep10M deep100M mnist8M; do bash 
 for d in 96 128 784 960; do bash $E/build_ganns.sh $d l2; done; for d in 200 256; do bash $E/build_ganns.sh $d cos; done
 ```
 
-## Systems
+## Algorithms
 
-`third_party/versions.tsv` pins every system to an upstream commit; `fetch.sh` downloads the sources and applies
+`third_party/versions.tsv` pins every algorithm to an upstream commit; `fetch.sh` downloads the sources and applies
 our patches from `third_party/patches/`.
 
 | Name | Upstream | Commit |
@@ -101,7 +101,7 @@ ids of the 100 nearest base vectors of every query).
 | Table 4 | construction with an equal maximum degree | [`equal_degree/`](experiments/equal_degree/) | |
 | Table 5 | construction at a comparable recall-throughput point | [`construction/`](experiments/construction/) | |
 | Figure 1 | SIFT1M, CAGRA and the non-graph indexes | [`qps_recall/`](experiments/qps_recall/), [`nongraph_baselines/`](experiments/nongraph_baselines/) | `fig01_intro.py` |
-| Figure 6 | search iterations: (a) one common search, (b) each system's own search | [`equal_degree/`](experiments/equal_degree/), [`traversal_depth/`](experiments/traversal_depth/) | `fig06_traversal_depth.py` |
+| Figure 6 | search iterations: (a) one common search, (b) each algorithm's own search | [`equal_degree/`](experiments/equal_degree/), [`traversal_depth/`](experiments/traversal_depth/) | `fig06_traversal_depth.py` |
 | Figure 7 | QPS and Recall@10 on eight datasets | [`qps_recall/`](experiments/qps_recall/), [`nongraph_baselines/`](experiments/nongraph_baselines/), [`equal_degree/`](experiments/equal_degree/) | `fig07_qps_recall.py` |
 | Figure 8 | time per search stage | [`equal_degree/`](experiments/equal_degree/) | `fig08_search_components.py` |
 | Figure 9, Table 6 | load once, then serve batches; composition of the load | [`loading/`](experiments/loading/) | `fig09_amortization.py` |
@@ -123,7 +123,7 @@ experiments above; the header of each plot script names its input file.
 ## Measurement
 
 All experiments run on one server with Ubuntu 22.04 LTS, an Intel Xeon Gold 6348 CPU at 2.60 GHz, 120 GB of host
-memory, and a single NVIDIA A800 GPU with 80 GB HBM2e memory. All systems are compiled at `-O3` with CUDA 12.4 and
+memory, and a single NVIDIA A800 GPU with 80 GB HBM2e memory. All algorithms are compiled at `-O3` with CUDA 12.4 and
 run by benchmark drivers in C++17 and CUDA. HNSW and the DiskANN disk index run on the host CPU, and BANG and PilotANN
 split their work between the CPU and the GPU as designed. No other job runs on the machine during the experiments.
 The base vectors and the index are copied from pageable host memory, and query batches from pinned memory. Hardware
