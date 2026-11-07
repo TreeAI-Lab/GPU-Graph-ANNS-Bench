@@ -339,7 +339,7 @@ int run(std::map<std::string, std::string>& a) {
         const double mean_t = std::accumulate(ts.begin(), ts.end(), 0.0) / ts.size();
         double var = 0; for (double t : ts) var += (t - mean_t) * (t - mean_t);
         const double sd_t = ts.size() > 1 ? std::sqrt(var / (ts.size() - 1)) : 0.0;
-        std::printf("%d\t%d\t%lld\t%.5f\t%.1f\t%.1f\t%lld\t%lld\t%.4f\t%.4f\t%d\t%d\t%d\n", L, k, (long long)nq, rec / nq,
+        std::printf("%d\t%d\t%lld\t%.5f\t%.1f\t%.1f\t%lld\t%lld\t%.6f\t%.6f\t%d\t%d\t%d\n", L, k, (long long)nq, rec / nq,
                     std::accumulate(nd.begin(), nd.end(), 0.0) / nq, std::accumulate(hp.begin(), hp.end(), 0.0) / nq,
                     (long long)snd[nq / 2], (long long)snd[std::min<int64_t>(nq - 1, nq * 99 / 100)], mean_t, sd_t, wpb, team,
                     reps);

@@ -5,8 +5,9 @@ Reads selected_configs.tsv and <raw_dir>/<dataset>_<system>.{cpu,gpu}.tsv (the C
 on the same graph) and writes one row per configuration with the distance computations and the QPS at
 Recall@10 = 0.9, interpolated between the two bracketing L. QPS = nq / search_s, where search_s is the mean time of
 the timed passes after one warm-up pass; n_timed_cpu and n_timed_gpu are the numbers of timed passes (NA if the
-sweep does not record them). Both versions follow the same search rule, so their distance computations should
-agree; both columns are kept as a check.
+sweep does not record them). qps_gpu_std_at_r90 is the standard deviation of the GPU QPS, QPS * search_s_std / search_s,
+with search_s_std interpolated like search_s (NA if the sweep does not record it). Both versions follow the same search
+rule, so their distance computations should agree; both columns are kept as a check.
 Usage: python collect_gpu_qps.py <selected_configs.tsv> <raw_dir> <out.tsv>
 """
 import argparse
@@ -18,14 +19,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src" / "unified_se
 from operating_point import at_recall  # noqa: E402
 
 
-def at90(f: Path) -> tuple[float | None, float | None, str]:
-    """(distance computations, QPS, number of timed passes) at Recall@10 = 0.9."""
+def at90(f: Path) -> tuple[float | None, float | None, str, float | None]:
+    """(distance computations, QPS, number of timed passes, QPS standard deviation) at Recall@10 = 0.9."""
     if not f.exists():
-        return None, None, "NA"
+        return None, None, "NA", None
     first = next(csv.DictReader(open(f), delimiter="\t"))
     nq = int(first["nq"])
     s = at_recall(f, "search_s")
-    return at_recall(f, "mean_ndist"), (nq / s if s else None), first.get("n_timed") or "NA"
+    qps = nq / s if s else None
+    sd = at_recall(f, "search_s_std") if "search_s_std" in first else None
+    qps_std = qps * sd / s if qps is not None and sd is not None else None
+    return at_recall(f, "mean_ndist"), qps, first.get("n_timed") or "NA", qps_std
 
 
 def main() -> None:
@@ -38,14 +42,14 @@ def main() -> None:
     out = []
     for r in csv.DictReader(open(a.configs), delimiter="\t"):
         ds, sysn = r["dataset"], r["system"]
-        nd_c, q_c, t_c = at90(a.raw / f"{ds}_{sysn}.cpu.tsv")
-        nd_g, q_g, t_g = at90(a.raw / f"{ds}_{sysn}.gpu.tsv")
+        nd_c, q_c, t_c, _ = at90(a.raw / f"{ds}_{sysn}.cpu.tsv")
+        nd_g, q_g, t_g, sd_g = at90(a.raw / f"{ds}_{sysn}.gpu.tsv")
         ratio = f"{q_g / q_c:.1f}" if q_c and q_g else "NA"
-        out.append([ds, sysn, r["build_args"], fmt(nd_c), fmt(nd_g), fmt(q_c), fmt(q_g), ratio, t_c, t_g])
+        out.append([ds, sysn, r["build_args"], fmt(nd_c), fmt(nd_g), fmt(q_c), fmt(q_g), ratio, t_c, t_g, fmt(sd_g)])
     a.out.parent.mkdir(parents=True, exist_ok=True)
     with open(a.out, "w") as fo:
         fo.write("dataset\tsystem\tbuild_args\tndist_at_r90_cpu\tndist_at_r90_gpu\tqps_cpu_at_r90\tqps_gpu_at_r90\tgpu_over_cpu\t"
-                 "n_timed_cpu\tn_timed_gpu\n")
+                 "n_timed_cpu\tn_timed_gpu\tqps_gpu_std_at_r90\n")
         fo.writelines("\t".join(x) + "\n" for x in out)
     print(f"wrote {a.out}: {sum(x[6] != 'NA' for x in out)} of {len(out)} configs have GPU results")
 
