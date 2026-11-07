@@ -1,6 +1,6 @@
 # Non-Graph GPU Baselines
 
-Paper: IVF-PQ and brute force in Figures 1 and 7.
+Paper: IVF-PQ and the Brute-force Algorithm in Figures 1 and 7.
 
 ## Settings
 

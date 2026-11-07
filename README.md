@@ -3,7 +3,7 @@
 Code for the experiments of *An In-depth Survey and Experimental Study of GPU Graph Vector Search Algorithms*.
 The study evaluates six GPU graph-based approximate nearest neighbor search algorithms (SONG, GGNN, GANNS, CAGRA, and
 the CPU-GPU hybrids BANG and PilotANN) against CPU graph indexes (HNSW in Faiss, the DiskANN disk index) and GPU
-non-graph indexes (IVF-PQ in Faiss and cuVS, brute force in cuVS), on eight datasets of up to 100 million vectors.
+non-graph indexes (IVF-PQ in Faiss and cuVS, the Brute-force Algorithm in cuVS), on eight datasets of up to 100 million vectors.
 
 ## Layout
 
@@ -41,7 +41,7 @@ Our programs are compiled into `$BIN_DIR`:
 bash src/search/build.sh all            # search drivers of CAGRA, GGNN, GANNS, SONG
 bash src/build/build_ggnn_driver.sh     # GGNN graph builder
 bash src/unified_search/build.sh        # common searcher, CPU and GPU
-bash src/baselines/build.sh all         # Faiss HNSW, Faiss and cuVS IVF-PQ, cuVS brute force
+bash src/baselines/build.sh all         # Faiss HNSW, Faiss and cuVS IVF-PQ, cuVS Brute-force Algorithm
 bash src/bench/build.sh                 # host-to-device copy benchmark
 bash src/fp16/build.sh                  # FP32 and FP16 search programs
 bash src/graph_tools/build.sh           # edge statistics, CAGRA graph conversion
