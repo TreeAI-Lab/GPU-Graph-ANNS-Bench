@@ -3,8 +3,9 @@
  * sample with exact top-K neighbors (written by sample_top32).
  *
  * Definition:
- *   edge (u,v) is SHORT iff v is among the exact top-K neighbors of u
- *   (K from gt_topK.ibin, typically 32); otherwise LONG.
+ *   edge (u,v) is LONG iff its length exceeds LONG_FACTOR (1.2) times the distance
+ *   from u to its K-th exact nearest neighbor (K from gt_topK.ibin, typically 32,
+ *   the graph degree); otherwise SHORT.
  *
  *   ./edge_length_stats <data_dir> <sample_dir> <out_dir> <algo=csr_path> ...
  *
@@ -13,7 +14,7 @@
  *
  * Per algo writes:
  *   <out_dir>/<algo>/edges.tsv
- *     sample_idx  u  v  length_l2  is_short  rank_in_topK(-1 if long)
+ *     sample_idx  u  v  length_l2  is_short  rank_in_topK(-1 if v is not in the top-K)
  *   <out_dir>/<algo>/edges.bin   (compact binary, see <out_dir>/PROTOCOL.txt)
  *   <out_dir>/<algo>/summary.txt
  * Aggregate:
@@ -42,6 +43,9 @@ double elapsed_ms(std::chrono::steady_clock::time_point t0,
                   std::chrono::steady_clock::time_point t1) {
     return std::chrono::duration<double, std::milli>(t1 - t0).count();
 }
+
+// An edge is long if it is longer than this factor times the distance to the K-th exact neighbor.
+constexpr float LONG_FACTOR = 1.2f;
 
 float l2(const float* a, const float* b, size_t d) {
     double s = 0.0;
@@ -73,7 +77,7 @@ void usage(const char* argv0) {
             "  %s <data_dir> <sample_dir> <out_dir> <algo=csr_path> [algo=csr_path ...]\n"
             "\n"
             "sample_dir: sample_ids.ibin + gt_topK.ibin from sample_top32\n"
-            "Short edge: neighbor in exact top-K of the sampled endpoint.\n",
+            "Long edge: longer than 1.2 times the distance to the K-th exact neighbor.\n",
             argv0);
 }
 
@@ -179,6 +183,16 @@ int main(int argc, char** argv) {
     auto t1 = std::chrono::steady_clock::now();
     printf("loaded base nb=%zu d=%zu in %.2f ms\n", nb, d, elapsed_ms(t0, t1));
 
+    // per sample: distance to the K-th exact neighbor, the threshold for long edges
+    std::vector<float> kth_len(S, 0.0f);
+    for (size_t i = 0; i < S; i++) {
+        int u = sample_ids[i];
+        int w = gt[i * K + K - 1];
+        if (u >= 0 && static_cast<size_t>(u) < nb && w >= 0 && static_cast<size_t>(w) < nb) {
+            kth_len[i] = l2(xb + static_cast<size_t>(u) * d, xb + static_cast<size_t>(w) * d, d);
+        }
+    }
+
     const std::string summary_path = dsio::join_path(out_dir, "summary.tsv");
     FILE* sumf = fopen(summary_path.c_str(), "w");
     if (!sumf) {
@@ -254,14 +268,11 @@ int main(int argc, char** argv) {
                     rec.u = u;
                     rec.v = v;
                     rec.length_l2 = len;
+                    rec.is_short = len <= LONG_FACTOR * kth_len[static_cast<size_t>(si)] ? 1 : 0;
                     auto it = top_rank[static_cast<size_t>(si)].find(v);
-                    if (it != top_rank[static_cast<size_t>(si)].end()) {
-                        rec.is_short = 1;
-                        rec.rank = static_cast<int8_t>(it->second);
-                    } else {
-                        rec.is_short = 0;
-                        rec.rank = -1;
-                    }
+                    rec.rank = it != top_rank[static_cast<size_t>(si)].end()
+                                   ? static_cast<int8_t>(it->second)
+                                   : static_cast<int8_t>(-1);
                     rec.pad = 0;
                     local.push_back(rec);
                 }
@@ -401,13 +412,13 @@ int main(int argc, char** argv) {
         FILE* pf = fopen(proto.c_str(), "w");
         if (pf) {
             fprintf(pf,
-                    "Short edge = neighbor in exact top-K of sampled node (from sample_top32).\n"
-                    "Long edge  = graph neighbor not in that top-K.\n"
+                    "Long edge  = longer than 1.2 times the distance from the sampled node to its K-th\n"
+                    "             exact neighbor (top-K from sample_top32); short edge otherwise.\n"
                     "length_l2  = Euclidean distance on base vectors.\n"
                     "\n"
                     "edges.bin: uint64 n_edges; then records of 20 bytes:\n"
                     "  int32 sample_idx, u, v; float32 length_l2; int8 is_short; int8 rank; int16 pad\n"
-                    "rank = position in top-K (0..K-1) if short, else -1.\n"
+                    "rank = position in top-K (0..K-1) if the neighbor is in it, else -1.\n"
                     "\n"
                     "All algos share the same sample_ids / gt_topK under sample_dir.\n");
             fclose(pf);
