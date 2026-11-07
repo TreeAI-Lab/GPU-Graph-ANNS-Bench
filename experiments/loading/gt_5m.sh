@@ -1,5 +1,5 @@
 #!/bin/bash
-# Exact top-10 of the 5,000,000 serving queries on one dataset (cuVS brute force, Figure 6).
+# Exact top-10 of the 5,000,000 serving queries on one dataset (cuVS brute force, Figure 9).
 # Usage: bash experiments/loading/gt_5m.sh <deep1M|deep10M|deep100M>
 # Output: $DATA_DIR/<dataset>/gt.5M.k10.ibin (and its .log). Skipped if the log says it is complete.
 #

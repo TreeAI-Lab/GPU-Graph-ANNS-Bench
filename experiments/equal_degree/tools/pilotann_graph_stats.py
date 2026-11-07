@@ -1,4 +1,4 @@
-"""Average degree and connected components of a PilotANN index (full graph of IndexStaged), Tables 5 and 6.
+"""Average degree and connected components of a PilotANN index (full graph of IndexStaged), Table 4.
 
 Runs in the pilot environment with the patched PilotANN installed (third_party/build/pilotann.sh).
 

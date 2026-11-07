@@ -1,4 +1,4 @@
-"""Average degree and connected components of a SONG graph file (bfsg.graph), Tables 5 and 6.
+"""Average degree and connected components of a SONG graph file (bfsg.graph), Table 4.
 
 bfsg.graph stores 2^shift size_t values per vertex: the out-degree, then the neighbor ids. shift is
 FIXED_DEGREE_SHIFT of config.h of the build (build_song.sh prints it).

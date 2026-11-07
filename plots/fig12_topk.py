@@ -1,7 +1,7 @@
-"""Figure 11: QPS versus Recall@K on SIFT1M for K = 10, 40, 70 and 100.
+"""Figure 12: QPS versus Recall@K on SIFT1M for K = 10, 40, 70 and 100.
 
-Input: results/fig11_topk.csv. Every panel plots Recall@K from 0.6 to the highest recall of a GPU system.
-Output: fig11_top<K>.pdf and fig11_legend.pdf.
+Input: results/fig12_topk.csv. Every panel plots Recall@K from 0.6 to the highest recall of a GPU system.
+Output: fig12_top<K>.pdf and fig12_legend.pdf.
 """
 import logging
 import math
@@ -36,11 +36,11 @@ def panel(d, k: int, out: str) -> None:
 
 def main() -> None:
     args = style.parse_args(__doc__.splitlines()[0])
-    d = style.read(args, 'fig11_topk.csv')
+    d = style.read(args, 'fig12_topk.csv')
     for k in (10, 40, 70, 100):
-        panel(d[d['k'] == k], k, os.path.join(args.out, f'fig11_top{k}.pdf'))
-    style.system_legend(style.SYSTEMS, os.path.join(args.out, 'fig11_legend.pdf'), ncol=6, width_pt=style.TEXT_W)
-    logger.info('wrote fig11_*.pdf')
+        panel(d[d['k'] == k], k, os.path.join(args.out, f'fig12_top{k}.pdf'))
+    style.system_legend(style.SYSTEMS, os.path.join(args.out, 'fig12_legend.pdf'), ncol=6, width_pt=style.TEXT_W)
+    logger.info('wrote fig12_*.pdf')
 
 
 if __name__ == '__main__':

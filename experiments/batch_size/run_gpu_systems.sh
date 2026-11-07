@@ -1,5 +1,5 @@
 #!/bin/bash
-# Batch-size sweeps of CAGRA, GGNN, GANNS and SONG on SIFT1M (Figure 8).
+# Batch-size sweeps of CAGRA, GGNN, GANNS and SONG on SIFT1M (Figure 10).
 # Usage: bash experiments/batch_size/run_gpu_systems.sh [batch size ...]   (default: 1 10 100 1000 10000)
 # For every batch size the drivers search the first <batch> queries at every point of the iteration schedule:
 # one untimed warm-up run, then three timed runs, means in sweep.tsv (the same drivers and schedules as the

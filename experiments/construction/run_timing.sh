@@ -1,5 +1,5 @@
 #!/bin/bash
-# Table 7: rebuild every selected configuration, verify it, and time it.
+# Table 5: rebuild every selected configuration, verify it, and time it.
 #
 # For each configuration of selected_configs.tsv, strictly one build at a time:
 #   1. Verify: build once (this build is also the warm-up and is not timed) and sweep the common searcher over L.

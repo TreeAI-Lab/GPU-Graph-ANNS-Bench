@@ -1,7 +1,7 @@
-"""Figure 16: CAGRA on SIFT1M built with (R) and without (NR) reverse edges.
+"""Figure 17: CAGRA on SIFT1M built with (R) and without (NR) reverse edges.
 
 (a) Recall@10 against the number of search iterations; (b) share of short (SE) and long (LE) edges.
-Input: results/fig16_reverse_edges.csv. Output: fig16a_iter_recall.pdf, fig16b_edge_share.pdf.
+Input: results/fig17_reverse_edges.csv. Output: fig17a_iter_recall.pdf, fig17b_edge_share.pdf.
 """
 import logging
 import os
@@ -79,9 +79,9 @@ def edge_share(d, out: str) -> None:
 
 def main() -> None:
     args = style.parse_args(__doc__.splitlines()[0])
-    d = style.read(args, 'fig16_reverse_edges.csv')
-    iter_recall(d[d['panel'] == 'a'], os.path.join(args.out, 'fig16a_iter_recall.pdf'))
-    edge_share(d[d['panel'] == 'b'], os.path.join(args.out, 'fig16b_edge_share.pdf'))
+    d = style.read(args, 'fig17_reverse_edges.csv')
+    iter_recall(d[d['panel'] == 'a'], os.path.join(args.out, 'fig17a_iter_recall.pdf'))
+    edge_share(d[d['panel'] == 'b'], os.path.join(args.out, 'fig17b_edge_share.pdf'))
 
 
 if __name__ == '__main__':

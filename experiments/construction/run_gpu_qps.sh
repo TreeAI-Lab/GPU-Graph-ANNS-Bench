@@ -1,5 +1,5 @@
 #!/bin/bash
-# Table 7, QPS column: QPS of the common searcher on the selected configurations, CPU and GPU version on the same
+# Table 5, QPS column: QPS of the common searcher on the selected configurations, CPU and GPU version on the same
 # graph.
 #
 # Stage build: rebuild the 28 graphs of selected_configs.tsv into $INDEX_DIR/<dataset>/<system>/<tag>_qps/,
@@ -16,7 +16,7 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/../../env.sh"
 HERE=$(cd "$(dirname "$0")" && pwd)
 
-REPS=${REPS:-3}              # timed passes per L of the CPU and GPU versions, after one warm-up pass
+REPS=${REPS:-5}              # timed passes per L of the CPU and GPU versions, after one warm-up pass
 THREADS=${THREADS:-14}       # CPU threads of the builders and of the CPU version
 STAGE=${STAGE:-all}
 CFG=${CFG:-$HERE/selected_configs.tsv}

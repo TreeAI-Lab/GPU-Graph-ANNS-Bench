@@ -1,5 +1,5 @@
 #!/bin/bash
-# Batch-size sweep of BANG on SIFT1M (Figure 8).
+# Batch-size sweep of BANG on SIFT1M (Figure 10).
 # Usage: bash experiments/batch_size/run_bang.sh [batch size ...]   (default: 1 10 100 1000 10000)
 # For every batch size bang_search searches the first <batch> queries for L = 10, 12, ..., 500,
 # each L once as an untimed warm-up and then three times timed. QPS = batch / mean wall time of the three timed

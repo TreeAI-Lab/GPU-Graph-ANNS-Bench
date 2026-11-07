@@ -1,5 +1,5 @@
 #!/bin/bash
-# Nsight Compute on the main search kernel at the operating point (Table 9 and the hardware columns of Table 10).
+# Nsight Compute on the main search kernel at the operating point (Table 7 and the hardware columns of Table 8).
 # usage: [PREC=fp16] profile_ncu.sh <gist|deep1M> <system> [kernel regex on the demangled name]
 #   The kernel regex defaults to the kernel_regex column of points.tsv (found by find_kernel.sh).
 # output: $OUT_DIR/profiling/<dataset>_<system>[_fp16]/ncu/<tag>.ncu-rep and raw.csv (all raw metrics including the
@@ -20,7 +20,7 @@ source "$HERE/../../env.sh"
 DS=${1:?dataset}
 SYS=${2:?system}
 KREGEX=${3:-$(awk -F'\t' -v d="$DS" -v s="$SYS" '$1==d && $2==s {print $6}' "$HERE/points.tsv")}
-NCU=${NCU:-ncu}   # Nsight Compute 2024.1.1 (version used for Tables 9 and 10)
+NCU=${NCU:-ncu}   # Nsight Compute 2024.1.1 (version used for Tables 7 and 8)
 PREC=${PREC:-fp32}
 CLOCK=${NCU_CLOCK:-none}
 REPLAY=${NCU_REPLAY:-application}
@@ -30,7 +30,7 @@ export PRE_SLEEP_S=${PRE_SLEEP_S:-3}
 TAG=${DS}_${SYS}; [[ "$PREC" == fp16 ]] && TAG=${TAG}_fp16
 OUT=$OUT_DIR/profiling/$TAG/ncu
 mkdir -p "$OUT"
-# Table 9 columns; dram__bytes_read.sum gives the GPU DRAM bytes read per query (Table 10)
+# Table 7 columns; dram__bytes_read.sum gives the GPU DRAM bytes read per query (Table 8)
 METRICS=sm__throughput.avg.pct_of_peak_sustained_elapsed,dram__throughput.avg.pct_of_peak_sustained_elapsed,sm__warps_active.avg.pct_of_peak_sustained_active,smsp__thread_inst_executed_per_inst_executed.ratio,lts__t_sector_hit_rate.pct,dram__bytes_read.sum
 # Weights for combining several launches into one row (summarize.py): duration, active SM cycles, instructions,
 # L2 sectors, issue-active cycles

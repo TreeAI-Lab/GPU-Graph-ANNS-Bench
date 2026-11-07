@@ -1,4 +1,4 @@
-"""Table 8: shares of the one-time loading payload.
+"""Table 6: shares of the one-time loading payload.
 
 A system's payload is the base-vector file plus that system's graph, the files copied by
 run_h2d_bench.sh. base_share and graph_share are those sizes divided by their sum.

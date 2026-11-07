@@ -1,5 +1,5 @@
 #!/bin/bash
-# Figure 16, step 3: search both graphs with the same settings and iteration budgets.
+# Figure 17, step 3: search both graphs with the same settings and iteration budgets.
 # Each graph becomes a CAGRA index with the base vectors attached (make_graph_to_cagra, then attach_dataset), which
 # the CAGRA sweep of Figure 7 (src/search/cagra/cagra_iter_sweep.py, cuVS 25.02 Python) searches: for every
 # iteration count 10, 12, ..., 500 the first query batch runs once as an untimed warm-up

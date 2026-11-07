@@ -1,5 +1,5 @@
 #!/bin/bash
-# Figure 12, HNSW curves (one thread): SIFT1M with maximum degree 64 and 128.
+# Figure 13, HNSW curves (one thread): SIFT1M with maximum degree 64 and 128.
 # Usage:  bash experiments/topk_degree/run_hnsw_degree.sh
 # Needs:  experiments/equal_degree/build_hnsw.sh, $BIN_DIR/faiss_hnsw
 # Output: $OUT_DIR/equal_degree/hnsw/sift1M-d<degree>/k10/t1.log

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Figure 12, GGNN curves: SIFT1M with maximum degree 64 and 128.
+# Figure 13, GGNN curves: SIFT1M with maximum degree 64 and 128.
 # Usage:  bash experiments/topk_degree/run_ggnn_degree.sh
 # Needs:  experiments/equal_degree/build_ggnn.sh, build_indexes.sh ggnn sift1M <degree>
 # Output: $OUT_DIR/equal_degree/ggnn/sift1M-d<degree>/k10/

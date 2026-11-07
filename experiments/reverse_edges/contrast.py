@@ -1,4 +1,4 @@
-"""Figure 16, step 4: tables that compare the graphs built with and without reverse edges.
+"""Figure 17, step 4: tables that compare the graphs built with and without reverse edges.
 
 Reads, under the experiment directory (default $OUT_DIR/reverse_edges):
   edge_stats/summary.tsv                    short and long edges of both graphs (edge_stats.sh)
@@ -110,7 +110,7 @@ def write_summary(edge_by: dict, wr: dict, nr_list: list, path: Path) -> None:
 
 def main() -> None:
     default = os.path.join(os.environ['OUT_DIR'], 'reverse_edges') if os.environ.get('OUT_DIR') else None
-    ap = argparse.ArgumentParser(description='Contrast tables of Figure 16.')
+    ap = argparse.ArgumentParser(description='Contrast tables of Figure 17.')
     ap.add_argument('--dir', default=default, required=default is None,
                     help='experiment directory (default: $OUT_DIR/reverse_edges)')
     args = ap.parse_args()

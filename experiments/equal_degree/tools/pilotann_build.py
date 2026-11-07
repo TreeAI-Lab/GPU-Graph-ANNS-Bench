@@ -1,6 +1,6 @@
 """Build a PilotANN index with the profiler of PilotANN (script/common.py, ANNProfiler) and save it.
 
-Prints the build time (Tables 5 and 6). method search-pilot builds the staged index (IndexStaged) on the
+Prints the build time (Table 4). method search-pilot builds the staged index (IndexStaged) on the
 graph <algorithm><n_neighbors>; method faiss builds a Faiss HNSW (M = n_neighbors / 2) or NSG index.
 The dataset directory holds base.fvecs, query.fvecs and groundtruth.ivecs.
 

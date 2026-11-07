@@ -1,5 +1,5 @@
 #!/bin/bash
-# PilotANN search of the equal-degree runs (Figures 5(a), 9): the PilotANN profiler on every query of the dataset,
+# PilotANN search of the equal-degree runs (Figures 6(b) and 8): the PilotANN profiler on every query of the dataset,
 # in file order, one process per ef_search value. tools/pilotann_bench.py searches these queries once as an
 # untimed warm-up and then three times, and prints the mean recall and the mean time of the three timed searches.
 #

@@ -1,4 +1,4 @@
-"""Hops of the common searcher at Recall@10 = 0.9 (Figure 5(b)), generated from the graph directories (never edited
+"""Hops of the common searcher at Recall@10 = 0.9 (Figure 6(a)), generated from the graph directories (never edited
 by hand).
 
 Reads configs.tsv and <graphs_root>/<dataset>/<system>/<tag>_depth/{search.tsv,stats.tsv} and writes one row per

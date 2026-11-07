@@ -1,5 +1,5 @@
 #!/bin/bash
-# QPS-recall sweeps of CAGRA, GGNN, GANNS and SONG (Figures 1, 7 and 10).
+# QPS-recall sweeps of CAGRA, GGNN, GANNS and SONG (Figures 1, 7, and 11).
 # Usage: bash experiments/qps_recall/run_graph_systems.sh [dataset ...]  (default: all datasets of datasets.sh)
 #   ONLY=<cagra|ggnn|ganns|song>  run one system;  FORCE=1  repeat sweeps that are already complete
 # Every sweep searches the first batch of BATCH queries (all queries of these datasets) at every point of the

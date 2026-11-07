@@ -1,7 +1,7 @@
 #!/bin/bash
-# Recall@10 and QPS of Table 10: 16 groups (GIST and DEEP1M; SONG, GGNN, GANNS, CAGRA; FP32 and FP16) at the
+# Recall@10 and QPS of Table 8: 16 groups (GIST and DEEP1M; SONG, GGNN, GANNS, CAGRA; FP32 and FP16) at the
 # operating point without a profiler. Each program run searches the operating point once as an untimed warm-up and
-# then three times timed. QPS = nq / kernel_ms of a timed search, the kernel-only measure of Figure 7; Table 10
+# then three times timed. QPS = nq / kernel_ms of a timed search, the kernel-only measure of Figure 7; Table 8
 # reports the mean QPS of the three timed searches.
 # REPS (default 1) program runs per group. With more than one, the runs form the outer loop, so the runs of one
 # group are spread over the session, and qps.tsv pools the timed searches of all runs of a group.
@@ -9,14 +9,14 @@
 # PRE_SLEEP_S (default 2) sleeps before each run so that every run starts from an idle GPU.
 # usage: bash qps_repeat.sh [REPS, default 1]
 # output: $OUT/<dataset>_<system>_<precision>/rep<i>/ (sweep.tsv, it_batches.tsv, logs) and $OUT/qps.tsv
-#   (OUT default $OUT_DIR/profiling/table10_qps)
+#   (OUT default $OUT_DIR/profiling/table8_qps)
 #   qps.tsv: dataset system precision reps recall@10 qps_mean qps_std qps_median qps_min qps_max kernel_ms_mean,
 #   over the timed searches of a group (reps = number of timed searches)
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 source "$HERE/../../env.sh"
 REPS=${1:-1}
-OUT=${OUT:-$OUT_DIR/profiling/table10_qps}
+OUT=${OUT:-$OUT_DIR/profiling/table8_qps}
 export PRE_SLEEP_S=${PRE_SLEEP_S:-2}
 mkdir -p "$OUT"
 for i in $(seq 1 "$REPS"); do
@@ -31,7 +31,7 @@ done
 
 # Summary from the timed searches in it_batches.tsv (phase timed1, timed2, ...; the warm-up rows are left out).
 # Columns are found by header name (the columns differ between systems). Per group: number of timed searches,
-# recall (the same in every search), QPS mean (Table 10), sample standard deviation, median, minimum, maximum,
+# recall (the same in every search), QPS mean (Table 8), sample standard deviation, median, minimum, maximum,
 # mean kernel time.
 {
   printf 'dataset\tsystem\tprecision\treps\trecall@10\tqps_mean\tqps_std\tqps_median\tqps_min\tqps_max\tkernel_ms_mean\n'

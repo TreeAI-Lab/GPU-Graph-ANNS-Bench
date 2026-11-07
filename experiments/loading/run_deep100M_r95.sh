@@ -1,5 +1,5 @@
 #!/bin/bash
-# Figure 6, deep100M: CAGRA with a GPU-resident index serves the 5,000,000 queries in batches of 10,000
+# Figure 9, deep100M: CAGRA with a GPU-resident index serves the 5,000,000 queries in batches of 10,000
 # at the smallest max_iterations that reaches 95% Recall@10 on the first batch.
 #
 # The graph-only index (built with the IVF-PQ graph builder) gets the base vectors attached in-process.

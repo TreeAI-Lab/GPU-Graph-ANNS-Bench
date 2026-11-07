@@ -1,4 +1,4 @@
-"""Average degree and connected components of a DiskANN disk index (<prefix>_disk.index), Tables 5 and 6.
+"""Average degree and connected components of a DiskANN disk index (<prefix>_disk.index), Table 4.
 
 The disk index is the Vamana graph searched by Vamana and BANG. After a 4096-byte header sector every node
 holds its vector, its degree and DEGREE neighbor slots. Nodes that fit in a sector are packed several per

@@ -3,12 +3,12 @@
 Every run directory ($OUT_DIR/equal_degree/<system>/<run>/k<K>/) holds meta.tsv (system, dataset, k, nq) and one
 log per search setting. Subcommands:
 
-  curves      recall and QPS of every log (Figures 7, 11, 12)
-  stages      share of search time per stage at one operating point per run (Figure 9)
-  iterations  visited nodes per query at the same operating point (Figure 5(a)); the path counter of each
+  curves      recall and QPS of every log (Figures 7, 12, and 13)
+  stages      share of search time per stage at one operating point per run (Figure 8)
+  iterations  visited nodes per query at the same operating point (Figure 6(b)); the path counter of each
               program, except CAGRA (max_iterations per query); the SONG counter starts at 100, which adds
               100 / nq per query
-  build       construction time, peak host memory, average degree and components (Tables 5 and 6)
+  build       construction time, peak host memory, average degree and components (Table 4)
 
 The operating point of a run is the log whose recall is closest to --target (default 0.9). stages and
 iterations use the runs at the default degree (run name = dataset) and K = --k (default 10) unless --all-runs.
@@ -49,7 +49,7 @@ import sys
 from typing import Dict, List, Optional, Sequence
 
 STAGES = ['gpu_cl', 'cpu_cl', 'gpu_dc', 'cpu_dc', 'gpu_dm', 'cpu_dm']
-NAME_FIG05 = {'sift1M': 'SIFT1M', 'gist': 'GIST', 'deep1M': 'DEEP1M', 'deep10M': 'DEEP10M'}
+NAME_FIG06 = {'sift1M': 'SIFT1M', 'gist': 'GIST', 'deep1M': 'DEEP1M', 'deep10M': 'DEEP10M'}
 SYSTEM = {'song': 'SONG', 'ggnn': 'GGNN', 'ganns': 'GANNS', 'cagra': 'CAGRA', 'bang': 'BANG',
           'pilotann': 'PilotANN', 'vamana': 'Vamana'}
 NUM = r'([-+0-9.eE]+|nan|inf)'
@@ -439,8 +439,8 @@ def main() -> None:
     else:
         rows = []
         for r in pick([r for r in recs if r.get('path_total') is not None], args.target):
-            rows.append({'path_from': 'counter', **r, 'panel': 'a',
-                         'dataset': NAME_FIG05.get(r['dataset'], r['dataset']),
+            rows.append({'path_from': 'counter', **r, 'panel': 'b',
+                         'dataset': NAME_FIG06.get(r['dataset'], r['dataset']),
                          'hops_per_query': r['path_total'] / r['nq']})
         write(rows, ['panel', 'dataset', 'system', 'param', 'recall', 'path_total', 'nq', 'hops_per_query',
                      'path_from', 'run', 'source', 'n_timed'], args.out)

@@ -1,4 +1,4 @@
-"""GPU-resident CAGRA batch search with the cuVS 25.02 Python API (Figure 6, deep1M and deep10M).
+"""GPU-resident CAGRA batch search with the cuVS 25.02 Python API (Figure 9, deep1M and deep10M).
 
 Loads the index and the base vectors once, then searches the query file in batches and records
 H2D query copy, search kernel and D2H top-k copy of every batch with CUDA events.

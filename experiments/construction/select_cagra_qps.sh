@@ -1,5 +1,5 @@
 #!/bin/bash
-# Table 7, CAGRA rows: select the CAGRA setting at a recall-QPS point comparable to the other builders. Within the
+# Table 5, CAGRA rows: select the CAGRA setting at a recall-QPS point comparable to the other builders. Within the
 # bound B, the CAGRA setting must also reach FRAC (0.95) of the QPS of GANNS at Recall@10 = 0.9, read from
 # $OUT_DIR/construction/gpu_qps.tsv (run run_gpu_qps.sh first).
 # Candidates per dataset: the degrees below in increasing order, at each degree NITER 5, 10, 15 and 20, IGD = 2 GD.

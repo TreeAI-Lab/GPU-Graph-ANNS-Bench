@@ -1,5 +1,5 @@
 #!/bin/bash
-# Figure 11, HNSW curves: Faiss HNSW (IndexHNSWFlat, M = 16, so maximum degree 32, efConstruction = 60, L2) on sift1M with
+# Figure 12, HNSW curves: Faiss HNSW (IndexHNSWFlat, M = 16, so maximum degree 32, efConstruction = 60, L2) on sift1M with
 # 1, 10, 20 and 40 threads for K = 10, 40, 70, 100.
 # For every K the values 10, 12, ..., 500 are searched;
 # all 10,000 queries go to one search() call; each efSearch is searched once untimed as warm-up,

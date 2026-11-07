@@ -1,5 +1,5 @@
 #!/bin/bash
-# Figure 6, deep1M and deep10M: CAGRA, GGNN, GANNS and SONG with a GPU-resident index serve the
+# Figure 9, deep1M and deep10M: CAGRA, GGNN, GANNS and SONG with a GPU-resident index serve the
 # 5,000,000 queries in batches of 10,000, at the smallest search effort that reaches 95% Recall@10.
 #
 #   1) calibration: on the first batch only (batch_id 0), find the minimal effort with

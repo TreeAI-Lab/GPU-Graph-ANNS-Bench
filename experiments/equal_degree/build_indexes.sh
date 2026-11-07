@@ -1,5 +1,5 @@
 #!/bin/bash
-# Tables 5 and 6 (and the graphs searched by the run scripts): build one index BUILD_RUNS times (default 5) and
+# Table 4 (and the graphs searched by the run scripts): build one index BUILD_RUNS times (default 5) and
 # record the construction time, peak host memory, average degree and components of every build;
 # tools/parse_logs.py build reports the mean construction time. The index of the last build is kept.
 #

@@ -1,8 +1,8 @@
-"""Figure 9: share of search time in candidate locating (CL), distance calculation (DC) and data maintenance (DM),
+"""Figure 8: share of search time in candidate locating (CL), distance calculation (DC) and data maintenance (DM),
 on the GPU and on the CPU, and the total time per 10,000 queries.
 
 Left: stacked shares. Right: bar length is log10 of the total time in microseconds, split by the same shares.
-Input: results/fig09_search_components.csv. Output: fig09_<dataset>.pdf and fig09_legend.pdf.
+Input: results/fig08_search_components.csv. Output: fig08_<dataset>.pdf and fig08_legend.pdf.
 """
 import logging
 import os
@@ -27,7 +27,7 @@ COLOR = {k: tuple(c / 255.0 for c in v) for k, v in COLOR.items()}
 
 def main() -> None:
     args = style.parse_args(__doc__.splitlines()[0])
-    d = style.read(args, 'fig09_search_components.csv')
+    d = style.read(args, 'fig08_search_components.csv')
     for ds in d['dataset'].unique():
         sub = d[d['dataset'] == ds]
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 9), width_ratios=[1.5, 1.8])
@@ -64,12 +64,12 @@ def main() -> None:
         ax2.invert_yaxis()
         ax2.set_xlabel('Log-scaled Total\nTime (us)', fontdict={'family': 'Times New Roman'})
         style.fit_text(fig, 0.48 * style.TEXT_W, tight_layout=True)
-        out = os.path.join(args.out, f'fig09_{ds}.pdf')
+        out = os.path.join(args.out, f'fig08_{ds}.pdf')
         plt.savefig(out, dpi=300, bbox_inches='tight')
         plt.close()
         logger.info('wrote %s', out)
     handles = [mpatches.Patch(color=COLOR[s], label=LABEL[s]) for s in STAGES]
-    out = os.path.join(args.out, 'fig09_legend.pdf')
+    out = os.path.join(args.out, 'fig08_legend.pdf')
     style.save_legend(handles, out, ncol=6, prop={'family': 'Times New Roman', 'size': 9}, columnspacing=1.5)
     logger.info('wrote %s', out)
 

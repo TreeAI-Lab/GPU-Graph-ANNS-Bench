@@ -1,4 +1,4 @@
-"""Figure 6 table: time per query when the index is loaded once and then serves batches of 10,000 queries.
+"""Figure 9 table: time per query when the index is loaded once and then serves batches of 10,000 queries.
 
 load_ms = mean host-to-device time of the base vectors plus a graph (run_h2d_bench.sh).
 On deep1M and deep10M each system uses its own graph (GGNN parts are summed). On deep100M
@@ -18,7 +18,7 @@ Inputs:
   --hnsw-root  optional, $OUT_DIR/equal_degree/hnsw, holding <dataset>/k10/t20.log of equal_degree/run_hnsw.sh
 Output (--out): dataset,system,kind,queries_served,ms_per_query,load_ms
 
-Usage: python per_query_table.py --h2d H2D.tsv --root DIR --out fig06_amortization.csv
+Usage: python per_query_table.py --h2d H2D.tsv --root DIR --out fig09_amortization.csv
 """
 import argparse
 import csv

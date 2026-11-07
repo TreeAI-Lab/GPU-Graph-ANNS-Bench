@@ -1,5 +1,5 @@
 #!/bin/bash
-# Figure 12, CAGRA curves: SIFT1M with maximum degree 64 and 128.
+# Figure 13, CAGRA curves: SIFT1M with maximum degree 64 and 128.
 # Usage:  bash experiments/topk_degree/run_cagra_degree.sh
 # Needs:  $ENV_CAGRA/bin/python, src/build/cagra_build.py, src/search/cagra/cagra_iter_sweep.py
 # Output: $OUT_DIR/topk_degree/cagra/degree<D>/

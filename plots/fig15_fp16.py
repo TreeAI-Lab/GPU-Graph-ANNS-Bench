@@ -1,7 +1,7 @@
-"""Figure 14: QPS versus Recall@10 on the A10 with FP32 (solid, hollow markers) and FP16 (dashed, filled markers).
+"""Figure 15: QPS versus Recall@10 on the A10 with FP32 (solid, hollow markers) and FP16 (dashed, filled markers).
 
-Input: results/fig14_fp16.csv (mean of the three timed searches at each iteration count). Every measured point is drawn; markers are at least MARK_GAP
-apart. Output: fig14_<dataset>.pdf and fig14_legend.pdf.
+Input: results/fig15_fp16.csv (mean of the three timed searches at each iteration count). Every measured point is drawn; markers are at least MARK_GAP
+apart. Output: fig15_<dataset>.pdf and fig15_legend.pdf.
 """
 import logging
 import os
@@ -56,14 +56,14 @@ def panel(d: pd.DataFrame, out: str) -> None:
 
 def main() -> None:
     args = style.parse_args(__doc__.splitlines()[0])
-    d = style.read(args, 'fig14_fp16.csv')
+    d = style.read(args, 'fig15_fp16.csv')
     for ds in ['gist', 'deep1M']:
-        panel(d[d['dataset'] == ds], os.path.join(args.out, f'fig14_{ds}.pdf'))
+        panel(d[d['dataset'] == ds], os.path.join(args.out, f'fig15_{ds}.pdf'))
     handles = [Line2D([], [], color=style.COLOR[s], marker=style.MARKER[s], markersize=7, markerfacecolor='none',
                       markeredgewidth=1.5, linewidth=2, label=s) for s in SYSTEMS]
     handles += [Line2D([], [], color='black', linestyle='-', linewidth=2, label='FP32'),
                 Line2D([], [], color='black', linestyle='--', linewidth=2, label='FP16')]
-    style.save_legend(handles, os.path.join(args.out, 'fig14_legend.pdf'), ncol=3,
+    style.save_legend(handles, os.path.join(args.out, 'fig15_legend.pdf'), ncol=3,
                       prop={'family': 'Times New Roman', 'size': 9})
 
 

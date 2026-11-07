@@ -1,7 +1,7 @@
-"""Figure 5: traversal depth at 90% Recall@10. (a) search iterations of each system's own search;
-(b) hops of one common search procedure run on every system's graph.
+"""Figure 6: traversal depth at 90% Recall@10. (a) search iterations of one common search procedure run on every system's graph;
+(b) search iterations of each system's own search.
 
-Input: results/fig05_traversal_depth.csv. Output: fig05a_search_iterations.pdf, fig05b_common_search_hops.pdf.
+Input: results/fig06_traversal_depth.csv. Output: fig06b_search_iterations.pdf, fig06a_common_search_hops.pdf.
 Both panels share the y range so that bars can be compared side by side.
 """
 import logging
@@ -19,11 +19,11 @@ logger = logging.getLogger(__name__)
 
 DATASETS = ['GIST', 'DEEP1M', 'DEEP10M', 'SIFT1M']
 # (system in the results file, legend label, color)
-BARS_A = [('SONG', 'SONG', '#8A95D5'), ('GGNN', 'GGNN', '#F27066'), ('GANNS', 'GANNS', '#A446E8'),
+BARS_OWN = [('SONG', 'SONG', '#8A95D5'), ('GGNN', 'GGNN', '#F27066'), ('GANNS', 'GANNS', '#A446E8'),
           ('CAGRA', 'CAGRA', '#808080'), ('BANG', 'BANG', '#3DBDD6'), ('PilotANN', 'PilotANN', '#B983CD'),
           ('Vamana', 'DiskANN', '#F4A3D0'), ('HNSW', 'HNSW', '#5CB8B0')]
 # BANG searches the DiskANN graph, so the common search gives one bar for both
-BARS_B = [('SONG', 'SONG', '#8A95D5'), ('GGNN', 'GGNN', '#F27066'), ('GANNS', 'GANNS', '#A446E8'),
+BARS_COMMON = [('SONG', 'SONG', '#8A95D5'), ('GGNN', 'GGNN', '#F27066'), ('GANNS', 'GANNS', '#A446E8'),
           ('CAGRA', 'CAGRA', '#808080'), ('BANG/Vamana', 'BANG / DiskANN', '#3DBDD6'),
           ('PilotANN', 'PilotANN', '#B983CD'), ('HNSW', 'HNSW', '#5CB8B0')]
 BAR_W = 0.11
@@ -75,11 +75,11 @@ def draw(d: pd.DataFrame, bars: list, ylabel: str, ncol: int, out: str) -> None:
 
 def main() -> None:
     args = style.parse_args(__doc__.splitlines()[0])
-    d = style.read(args, 'fig05_traversal_depth.csv')
-    draw(d[d['panel'] == 'a'], BARS_A, 'Search Iterations (SI)', 5,
-         os.path.join(args.out, 'fig05a_search_iterations.pdf'))
-    draw(d[d['panel'] == 'b'], BARS_B, 'Common-Search Hops (CH)', 4,
-         os.path.join(args.out, 'fig05b_common_search_hops.pdf'))
+    d = style.read(args, 'fig06_traversal_depth.csv')
+    draw(d[d['panel'] == 'a'], BARS_COMMON, 'Search Iterations (SI)', 4,
+         os.path.join(args.out, 'fig06a_common_search_hops.pdf'))
+    draw(d[d['panel'] == 'b'], BARS_OWN, 'Search Iterations (SI)', 5,
+         os.path.join(args.out, 'fig06b_search_iterations.pdf'))
 
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Figure 16, step 1: build one NN-descent graph of SIFT1M and optimize it twice with CAGRA,
+# Figure 17, step 1: build one NN-descent graph of SIFT1M and optimize it twice with CAGRA,
 # with and without reverse edges (cagra_build_csr --ab). Both graphs therefore start from the same kNN graph.
 # Needs cagra_build_csr linked against the libcuvs with the CUVS_CAGRA_NO_REVERSE patch.
 set -euo pipefail

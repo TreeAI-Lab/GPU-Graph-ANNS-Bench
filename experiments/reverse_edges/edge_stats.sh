@@ -1,5 +1,5 @@
 #!/bin/bash
-# Figure 16, step 2: share of short and long edges of the two graphs.
+# Figure 17, step 2: share of short and long edges of the two graphs.
 # sample_top32 draws 10,000 base vectors and finds their exact 32 nearest neighbors (cuVS brute force);
 # edge_length_stats labels each graph edge of a sampled node short if its target is among those 32, long otherwise.
 set -euo pipefail

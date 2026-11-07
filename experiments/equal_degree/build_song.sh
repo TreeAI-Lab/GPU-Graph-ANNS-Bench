@@ -6,7 +6,7 @@
 # config.h; the adjacency stride 2^FIXED_DEGREE_SHIFT must hold the degree plus one count slot.
 # The same program builds the graph (song build) and searches it (song test); the search takes
 # max_iterations and the graph directory on the command line and prints path_length and
-# calculate_count (Figure 5(a)).
+# calculate_count (Figure 6(b)).
 #
 # Usage:  bash build_song.sh <dataset> [degree]
 # Output: $BIN_DIR/equal_degree/song/<dataset>-d<degree>/song; $W/build/equal_degree/song/<dataset>-d<degree>

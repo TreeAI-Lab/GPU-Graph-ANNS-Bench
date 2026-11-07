@@ -1,5 +1,5 @@
 #!/bin/bash
-# Batch-size sweep of PilotANN on SIFT1M (Figure 8), see src/search/pilotann/pilotann_batch.py for the timing.
+# Batch-size sweep of PilotANN on SIFT1M (Figure 10), see src/search/pilotann/pilotann_batch.py for the timing.
 # Usage: bash experiments/batch_size/run_pilotann.sh [batch size ...]   (default: 1 10 100 1000 10000)
 # Output: $OUT_DIR/batch_size/pilotann/<batch>/sweep.tsv, $OUT_DIR/batch_size/pilotann_run.log
 set -euo pipefail

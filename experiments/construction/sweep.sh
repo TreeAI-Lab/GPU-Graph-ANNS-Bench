@@ -1,5 +1,5 @@
 #!/bin/bash
-# Parameter search for Table 7: build every configuration of a grid and sweep the common searcher over L.
+# Parameter search for Table 5: build every configuration of a grid and sweep the common searcher over L.
 # The search uses only distance computation counts, so builds run in parallel and the machine need not be
 # exclusive.
 #

@@ -1,7 +1,7 @@
-"""Figure 13: Recall@10 and QPS of CAGRA on SIFT1M when one parameter varies.
+"""Figure 14: Recall@10 and QPS of CAGRA on SIFT1M when one parameter varies.
 
-Input: results/fig13_cagra_parameters.csv (time_us: search kernel time of 10,000 queries).
-Output: fig13_<parameter>.pdf for search_width, internal_topk, degree and team_size.
+Input: results/fig14_cagra_parameters.csv (time_us: search kernel time of 10,000 queries).
+Output: fig14_<parameter>.pdf for search_width, internal_topk, degree and team_size.
 """
 import logging
 import os
@@ -19,7 +19,7 @@ XLABEL = {'search_width': 'Search Width', 'internal_topk': 'Internal TopK', 'deg
 
 def main() -> None:
     args = style.parse_args(__doc__.splitlines()[0])
-    d = style.read(args, 'fig13_cagra_parameters.csv')
+    d = style.read(args, 'fig14_cagra_parameters.csv')
     for param, g in d.groupby('parameter'):
         g = g.sort_values('value')
         x = range(len(g))
@@ -42,7 +42,7 @@ def main() -> None:
                           borderaxespad=0.2, prop={'family': 'Times New Roman'})
         plt.grid(True, linestyle='--', alpha=0.6)
         style.fit_text(fig, 0.47 * style.COL_W, tight_layout=True)
-        out = os.path.join(args.out, f'fig13_{param}.pdf')
+        out = os.path.join(args.out, f'fig14_{param}.pdf')
         plt.savefig(out, dpi=300, bbox_inches='tight')
         plt.close()
         logger.info('wrote %s', out)

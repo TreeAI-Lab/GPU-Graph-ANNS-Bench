@@ -1,5 +1,5 @@
 #!/bin/bash
-# BANG graphs of Table 9 and the BANG programs for them.
+# BANG graphs of Table 7 and the BANG programs for them.
 #   1. DiskANN build_disk_index (Vamana graph with PQ), R = the maximum degree D of the dataset:
 #      DEEP1M 32 (L = 60), GIST 128 (L = 180); -B 80 -M 80; QD not given, so DiskANN derives
 #      the PQ code size from B (96 bytes per vector for DEEP1M, 512 for GIST).

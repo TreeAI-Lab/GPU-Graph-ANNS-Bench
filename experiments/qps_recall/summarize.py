@@ -10,11 +10,11 @@ Writes
   <root>/fig07_points.tsv       dataset, system, param, recall_at_10, qps of every measured point of Figures 1 and 7:
                                 CAGRA, GGNN, GANNS, SONG: nq / kernel time; BANG, PilotANN: the qps column
                                 (nq / wall time of the whole search)
-  <root>/fig10.tsv              system, dataset, time_us_per_10k, status: time per 10,000 queries of the fastest
-                                plotted point with Recall@10 >= FIG10_RECALL, or of the highest-recall point when the
-                                curve stops between FIG10_MIN_RECALL and FIG10_RECALL, for the six systems on DEEP1M,
+  <root>/fig11.tsv              system, dataset, time_us_per_10k, status: time per 10,000 queries of the fastest
+                                plotted point with Recall@10 >= FIG11_RECALL, or of the highest-recall point when the
+                                curve stops between FIG11_MIN_RECALL and FIG11_RECALL, for the six systems on DEEP1M,
                                 DEEP10M, DEEP100M (empty: no run, or status below_target when no point reaches
-                                FIG10_MIN_RECALL)
+                                FIG11_MIN_RECALL)
 Usage: python summarize.py --root $OUT_DIR/qps_recall
 """
 import argparse
@@ -29,8 +29,8 @@ FIELDS = ["algo", "it", "itopk", "nq", "warmup_kernel_ms", "h2d_query_ms", "kern
           "qps", "recall@10", "gpu_used_mib", "host_rss_mib", "kernel_ms_std", "wall_ms_std", "n_timed"]
 SYSTEM = {"cagra": "CAGRA", "ggnn": "GGNN", "ganns": "GANNS", "song": "SONG", "bang": "BANG", "pilotann": "PilotANN"}
 PARAM = {"cagra": "it", "ggnn": "it", "ganns": "it", "song": "it", "bang": "L", "pilotann": "ef"}
-FIG10_RECALL = 0.95  # Figure 10 reads each curve at this Recall@10
-FIG10_MIN_RECALL = 0.94  # a curve that stops short of FIG10_RECALL is read at its end if it reaches this Recall@10
+FIG11_RECALL = 0.95  # Figure 11 reads each curve at this Recall@10
+FIG11_MIN_RECALL = 0.94  # a curve that stops short of FIG11_RECALL is read at its end if it reaches this Recall@10
 
 
 def gpu_rows(root: Path, ds: str, algo: str) -> List[Dict[str, str]]:
@@ -139,19 +139,19 @@ def main() -> None:
                        "qps": f"{plotted_qps(r):.2f}"})
     write(root / "fig07_points.tsv", ["dataset", "system", "param", "recall_at_10", "qps"], points)
 
-    fig10 = []
+    fig11 = []
     for algo in ("song", "ggnn", "ganns", "cagra", "bang", "pilotann"):
         for ds in ("deep1M", "deep10M", "deep100M"):
             curve = [p for p in points if p["dataset"] == ds and p["system"] == SYSTEM[algo]]
-            qps = [float(p["qps"]) for p in curve if float(p["recall_at_10"]) >= FIG10_RECALL]
+            qps = [float(p["qps"]) for p in curve if float(p["recall_at_10"]) >= FIG11_RECALL]
             if curve and not qps:  # the curve stops short of the target: read its highest-recall point
                 end = max(curve, key=lambda p: float(p["recall_at_10"]))
-                if float(end["recall_at_10"]) >= FIG10_MIN_RECALL:
+                if float(end["recall_at_10"]) >= FIG11_MIN_RECALL:
                     qps = [float(end["qps"])]
             t = f"{1e4 / max(qps) * 1e6:.0f}" if qps else ""
             status = "below_target" if curve and not qps else ""
-            fig10.append({"system": SYSTEM[algo], "dataset": ds, "time_us_per_10k": t, "status": status})
-    write(root / "fig10.tsv", ["system", "dataset", "time_us_per_10k", "status"], fig10)
+            fig11.append({"system": SYSTEM[algo], "dataset": ds, "time_us_per_10k": t, "status": status})
+    write(root / "fig11.tsv", ["system", "dataset", "time_us_per_10k", "status"], fig10)
 
 
 if __name__ == "__main__":

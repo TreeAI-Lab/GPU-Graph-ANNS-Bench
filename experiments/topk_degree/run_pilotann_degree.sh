@@ -1,5 +1,5 @@
 #!/bin/bash
-# Figure 12, PilotANN curves: PilotANN on sift1M with NSG graphs of degree 64 and 128
+# Figure 13, PilotANN curves: PilotANN on sift1M with NSG graphs of degree 64 and 128
 # (efConstruction 80, d_principle 96, sample ratio 0.25), then an ef sweep of the first 10,000
 # queries (per ef one untimed warm-up run and three timed runs, means reported, k = 10).
 # Degree 128 needs the larger traversal buffer of third_party/patches/pilotann.patch

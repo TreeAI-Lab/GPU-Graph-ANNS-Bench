@@ -1,5 +1,5 @@
 #!/bin/bash
-# Figure 5(b): build the graphs of configs.tsv and sweep the common searcher over L, giving the hops at
+# Figure 6(a): build the graphs of configs.tsv and sweep the common searcher over L, giving the hops at
 # Recall@10 = 0.9.
 #
 # Only counts are used, nothing is timed, so builds run in parallel:

@@ -1,4 +1,4 @@
-# Per-dataset settings of the QPS-recall runs (Figures 1, 7 and 10). Sourced by the scripts of this folder.
+# Per-dataset settings of the QPS-recall runs (Figures 1, 7, and 11). Sourced by the scripts of this folder.
 #
 # Dataset ids are the names used in the figures and the data directory names under $DATA_DIR.
 #
@@ -24,7 +24,7 @@ cfg_graph() {
     nytimes)  echo "nytimes 290000 256 64 10000 gd64_igd128_it20 k64_tau0.3_r2 k32_m120 fd64_shift7_deg32 7" ;;
     gist)     echo "gist 1000000 960 128 1000 gd128_igd256_it20 k128_tau0.3_r2 k64_m180 fd128_shift8_deg64 8" ;;
     # DEEP100M: CAGRA built with the IVF-PQ graph builder (NN-descent does not fit in GPU memory), GGNN built in
-    # 5 shards of 20,000,000 vectors. GANNS exceeds the GPU memory and SONG the host memory (Table 6).
+    # 5 shards of 20,000,000 vectors. GANNS exceeds the GPU memory and SONG the host memory (Table 4).
     deep100M) echo "deep100M 100000000 96 32 10000 gd32_igd64_ivfpq k32_tau0.3_r2 - - -" ;;
     mnist8M)  echo "mnist8M 8090000 784 128 10000 gd128_igd256_it20 k128_tau0.3_r2 k64_m180 fd128_shift8_deg64 8" ;;
     *) echo "unknown dataset $1" >&2; return 1 ;;

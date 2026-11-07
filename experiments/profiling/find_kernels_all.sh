@@ -1,5 +1,5 @@
 #!/bin/bash
-# Run find_kernel.sh for every group of Tables 9 and 10: five systems in FP32 and four in FP16, on GIST and DEEP1M.
+# Run find_kernel.sh for every group of Tables 7 and 8: five systems in FP32 and four in FP16, on GIST and DEEP1M.
 # usage: bash find_kernels_all.sh
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)

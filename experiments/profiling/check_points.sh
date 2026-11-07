@@ -1,7 +1,7 @@
 #!/bin/bash
 # Check the programs on a new machine: one FP32 and one FP16 run of SONG, GGNN, GANNS and CAGRA at the operating
 # point on GIST and DEEP1M, printed next to the reference recall of points.tsv. The FP32 recall should equal
-# recall_ref (up to the rounding in points.tsv); the FP16 recall is the one of Table 10.
+# recall_ref (up to the rounding in points.tsv); the FP16 recall is the one of Table 8.
 # usage: bash check_points.sh
 # output: $OUT_DIR/profiling/check/<dataset>_<system>_<precision>/ and a table on stdout
 set -euo pipefail

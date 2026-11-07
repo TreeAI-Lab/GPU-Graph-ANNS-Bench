@@ -1,5 +1,5 @@
 #!/bin/bash
-# SONG search of the equal-degree runs (Figures 5(a), 9, 12): per value of max_iterations (the queue holds
+# SONG search of the equal-degree runs (Figures 6(b), 8, and 13): per value of max_iterations (the queue holds
 # max_iterations - 1 entries) the SONG program runs once as an untimed warm-up and then TIMED_RUNS times
 # (default 3; repeat_runs in common.sh, one process per run), and Recall@K is computed from the output of every timed run.
 # stdout and stderr of a run go to one file; cal_recall.py skips the 7 lines

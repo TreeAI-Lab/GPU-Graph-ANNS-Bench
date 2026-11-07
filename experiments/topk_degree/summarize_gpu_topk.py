@@ -1,11 +1,11 @@
-"""Merge the GPU top-K sweeps of Figure 11 into one table.
+"""Merge the GPU top-K sweeps of Figure 12 into one table.
 
 Reads <root>/k<K>/<system>/sweep.tsv, written by run_gpu_topk.sh, and writes <root>/topk.txt with one row per
 point: dataset, algo, degree, k, it, itopk, M, nq, qps, recall, wall_ms, kernel_ms.
 it is the effort value of the sweep (iterations, GANNS n_e, BANG L, PilotANN ef), itopk the CAGRA internal top-k
 (for BANG it repeats L, for PilotANN ef) and M the GANNS candidate list. qps = nq / mean wall time, recall = Recall@K (the recall@10
 column of sweep.tsv holds Recall@K in these runs). kernel_ms is the mean search kernel time, for PilotANN the
-CPU-GPU pipeline time, and empty for BANG. Figure 11 plots nq / kernel_ms for CAGRA, GGNN, GANNS and SONG and qps
+CPU-GPU pipeline time, and empty for BANG. Figure 12 plots nq / kernel_ms for CAGRA, GGNN, GANNS and SONG and qps
 for BANG and PilotANN, as Figure 7 does.
 Usage: python summarize_gpu_topk.py --root $OUT_DIR/topk_degree/gpu [--dataset sift1M] [--degree 32]
 """

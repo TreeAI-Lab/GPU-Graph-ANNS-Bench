@@ -1,5 +1,5 @@
 #!/bin/bash
-# Vamana search (Figures 5(a), 7): DiskANN search_disk_index on the disk index that BANG also searches,
+# Vamana search (Figures 6(b) and 7): DiskANN search_disk_index on the disk index that BANG also searches,
 # 48 threads, 1,000 cached nodes, one process per list size L. The process searches all queries with the same L
 # WARMUP_RUNS + TIMED_RUNS times (default 1 + 3): L is given that many times to -L, and the result table has one
 # row per search. tools/parse_logs.py drops the warm-up rows, whose number the first line of the log records, and

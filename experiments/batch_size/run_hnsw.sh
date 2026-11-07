@@ -1,5 +1,5 @@
 #!/bin/bash
-# Batch-size sweep of HNSW with 20 threads (HNSW_20 in Figure 8) on SIFT1M: Faiss IndexHNSWFlat with M = 16 (maximum degree 32) and
+# Batch-size sweep of HNSW with 20 threads (HNSW_20 in Figure 10) on SIFT1M: Faiss IndexHNSWFlat with M = 16 (maximum degree 32) and
 # efConstruction = 60, searched with 20 threads at every efSearch of 10, 12, ..., 500.
 # Usage: bash experiments/batch_size/run_hnsw.sh [batch size ...]   (default: 1 10 100 1000 10000)
 # Needs: $BIN_DIR/faiss_hnsw (bash src/baselines/build.sh faiss)

@@ -1,4 +1,4 @@
-"""Exact top-k ground truth of a large query file (the 5,000,000 queries of Figure 6), with cuVS brute force.
+"""Exact top-k ground truth of a large query file (the 5,000,000 queries of Figure 9), with cuVS brute force.
 
 The base set is kept on the GPU as one brute-force index; the queries are searched in batches.
 Output: ibin, int32 n, int32 k, then n x k int32 neighbor ids (squared L2). A log is written next to it

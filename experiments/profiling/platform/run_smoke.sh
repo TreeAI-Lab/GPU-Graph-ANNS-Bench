@@ -1,6 +1,6 @@
 #!/bin/bash
 # Check that Nsight Compute can read the GPU performance counters on this machine.
-# Pass: the last line is "SMOKE PASS", after the values of the five Table 9 throughput and occupancy metrics.
+# Pass: the last line is "SMOKE PASS", after the values of the five Table 7 throughput and occupancy metrics.
 # A small gather kernel is launched twice and profiled with the WarpStateStats section, skipping the first launch.
 # usage: bash run_smoke.sh
 # output: $OUT_DIR/profiling/smoke/ (ncu.log, smoke.csv)

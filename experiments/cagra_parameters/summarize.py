@@ -1,7 +1,7 @@
-"""Merge the Figure 13 runs into the table that plots/fig13_cagra_parameters.py reads.
+"""Merge the Figure 14 runs into the table that plots/fig14_cagra_parameters.py reads.
 
 Reads <root>/<parameter>-<value>/sweep.tsv, whose one row holds the means over the three timed runs, and writes
-<root>/fig13_cagra_parameters.csv: parameter, value, recall_at_10, time_us (mean kernel time scaled to 10,000
+<root>/fig14_cagra_parameters.csv: parameter, value, recall_at_10, time_us (mean kernel time scaled to 10,000
 queries, the time behind the CAGRA QPS of Figure 7), kernel_ms, wall_ms, nq.
 Usage: python summarize.py --root $OUT_DIR/cagra_parameters
 """
@@ -44,7 +44,7 @@ def main() -> None:
     rows = collect(root)
     if not rows:
         raise SystemExit(f"no sweep.tsv under {root}")
-    out = root / "fig13_cagra_parameters.csv"
+    out = root / "fig14_cagra_parameters.csv"
     with open(out, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=FIELDS)
         w.writeheader()

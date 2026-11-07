@@ -1,5 +1,5 @@
 #!/bin/bash
-# Figure 13: CAGRA on SIFT1M with one search parameter varied at a time from the base setting
+# Figure 14: CAGRA on SIFT1M with one search parameter varied at a time from the base setting
 # (search width 1, internal top-k 32, graph degree 32, team size 8, 40 iterations, k = 10).
 # Every setting searches the 10,000 queries as one batch with the CAGRA sweep of Figure 7
 # (src/search/cagra/cagra_iter_sweep.py): one untimed warm-up run, then three timed runs, means reported.

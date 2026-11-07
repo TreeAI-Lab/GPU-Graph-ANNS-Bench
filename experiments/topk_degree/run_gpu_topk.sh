@@ -1,7 +1,7 @@
 #!/bin/bash
-# Figure 11, GPU and hybrid systems: CAGRA, GGNN, GANNS, SONG, BANG and PilotANN on SIFT1M for K = 40, 70, 100.
+# Figure 12, GPU and hybrid systems: CAGRA, GGNN, GANNS, SONG, BANG and PilotANN on SIFT1M for K = 40, 70, 100.
 # Each system runs its Figure 7 search program on its Figure 7 index (experiments/qps_recall) with K neighbors
-# returned, and recall is Recall@K against the top-K ground truth. The K = 10 curves of Figure 11 are those of
+# returned, and recall is Recall@K against the top-K ground truth. The K = 10 curves of Figure 12 are those of
 # Figure 7. Every point searches the 10,000 queries as one batch, once as an untimed warm-up and then three times
 # timed; sweep.tsv holds the means.
 # Sweeps: 10, 12, ..., 500.

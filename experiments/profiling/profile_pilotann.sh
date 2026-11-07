@@ -1,5 +1,5 @@
 #!/bin/bash
-# Nsight Compute for PilotANN on DEEP1M and GIST, the two Table 9 groups next to the 18 of profile_all.sh
+# Nsight Compute for PilotANN on DEEP1M and GIST, the two Table 7 groups next to the 18 of profile_all.sh
 # (run_all.sh does not call this script). For each dataset:
 #   1. run_point.sh at the operating point of points.tsv; stops if Recall@10 is not a number of at least 0.95
 #   2. find_kernel.sh; the launches per search are the instances of the kernels matching kernel_regex of

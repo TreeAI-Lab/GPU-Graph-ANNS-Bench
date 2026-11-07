@@ -1,7 +1,7 @@
-"""Figure 12: QPS versus Recall@10 on SIFT1M with maximum degree 64 and 128.
+"""Figure 13: QPS versus Recall@10 on SIFT1M with maximum degree 64 and 128.
 
-Input: results/fig12_degree.csv. The panels use fixed axis ranges; the y range grows
-when the PilotANN curve needs more room. Output: fig12_degree<R>.pdf and fig12_legend.pdf.
+Input: results/fig13_degree.csv. The panels use fixed axis ranges; the y range grows
+when the PilotANN curve needs more room. Output: fig13_degree<R>.pdf and fig13_legend.pdf.
 """
 import logging
 import math
@@ -21,7 +21,7 @@ LIMITS = {64: ((0.6632, 1.0), (5.647019, 2.07164e+06)), 128: ((0.8064, 1.0), (23
 
 def main() -> None:
     args = style.parse_args(__doc__.splitlines()[0])
-    d = style.read(args, 'fig12_degree.csv')
+    d = style.read(args, 'fig13_degree.csv')
     for degree, ((x_lo, x_hi), (lo, hi)) in LIMITS.items():
         sub = d[d['degree'] == degree]
         curves = [(s, list(g['recall']), list(g['qps'])) for s in SYSTEMS
@@ -36,9 +36,9 @@ def main() -> None:
         style.draw_curves(ax, curves + extra, (x_lo, x_hi), (math.log10(lo), math.log10(hi)), 8, 1.3)
         ax.set_xlim(x_lo, x_hi)
         ax.set_ylim(lo, hi)
-        style.finish_qps_panel(fig, ax, 'Recall@10', 0.47 * style.COL_W, os.path.join(args.out, f'fig12_degree{degree}.pdf'))
-    style.system_legend(SYSTEMS, os.path.join(args.out, 'fig12_legend.pdf'), ncol=4)
-    logger.info('wrote fig12_*.pdf')
+        style.finish_qps_panel(fig, ax, 'Recall@10', 0.47 * style.COL_W, os.path.join(args.out, f'fig13_degree{degree}.pdf'))
+    style.system_legend(SYSTEMS, os.path.join(args.out, 'fig13_legend.pdf'), ncol=4)
+    logger.info('wrote fig13_*.pdf')
 
 
 if __name__ == '__main__':

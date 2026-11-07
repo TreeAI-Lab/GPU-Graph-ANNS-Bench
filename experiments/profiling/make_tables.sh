@@ -1,16 +1,16 @@
 #!/bin/bash
-# Write the LaTeX body rows of Table 9 (tab:profiling) and Table 10 (tab:fp16) from summary.tsv (Nsight Compute)
-# and table10_qps/qps.tsv (mean QPS). All numbers come from these two files.
-# Table 9: one group row per dataset; the last column is the share of the long-scoreboard stall. The script stops
+# Write the LaTeX body rows of Table 7 (tab:profiling) and Table 8 (tab:fp16) from summary.tsv (Nsight Compute)
+# and table8_qps/qps.tsv (mean QPS). All numbers come from these two files.
+# Table 7: one group row per dataset; the last column is the share of the long-scoreboard stall. The script stops
 # with an error if long scoreboard is not the main stall of a row.
-# Table 10: the FP16 rows give the speedup in parentheses (FP16 mean QPS / FP32 mean QPS of the same system);
+# Table 8: the FP16 rows give the speedup in parentheses (FP16 mean QPS / FP32 mean QPS of the same system);
 # the last column is the long-scoreboard share, again checked to be the main stall.
 # usage: bash make_tables.sh > $OUT_DIR/profiling/tables.tex
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 source "$HERE/../../env.sh"
 S=${SUMMARY:-$OUT_DIR/profiling/summary.tsv}
-Q=${QPS:-$OUT_DIR/profiling/table10_qps/qps.tsv}
+Q=${QPS:-$OUT_DIR/profiling/table8_qps/qps.tsv}
 
 awk -F'\t' -v Q="$Q" '
 function cite(x) { return (x in NAME) ? NAME[x] : x }
@@ -36,7 +36,7 @@ NR == 1 { for (i = 1; i <= NF; i++) c[$i] = i; next }
 { k = $c["dataset"] SUBSEP $c["system"] SUBSEP $c["precision"]; for (i = 1; i <= NF; i++) v[k, i] = $i; have[k] = 1 }
 END {
   nd = split("gist deep1M", D, " ")
-  print "% Table 9 (tab:profiling)"
+  print "% Table 7 (tab:profiling)"
   ns = split("song ggnn ganns cagra bang pilotann", T, " ")
   for (d = 1; d <= nd; d++) {
     printf "\t\t\\multicolumn{7}{@{}l}{\\textit{%s}} \\\\\n\t\t\\hline\n", cite(D[d])
@@ -49,7 +49,7 @@ END {
     }
     print "\t\t\\hline"
   }
-  print "% Table 10 (tab:fp16)"
+  print "% Table 8 (tab:fp16)"
   ns = split("song ggnn ganns cagra", T, " ")
   np = split("fp32 fp16", P, " ")
   for (d = 1; d <= nd; d++) {

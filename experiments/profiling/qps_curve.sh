@@ -1,5 +1,5 @@
 #!/bin/bash
-# FP32 and FP16 QPS-recall curves of Figure 14: GIST and DEEP1M; SONG, GGNN, GANNS, CAGRA; 16 curves.
+# FP32 and FP16 QPS-recall curves of Figure 15: GIST and DEEP1M; SONG, GGNN, GANNS, CAGRA; 16 curves.
 # The iteration counts are 10, 12, ..., 500. At each iteration count the program runs one untimed warm-up search and then
 # three timed searches; QPS = nq / kernel_ms of a timed search, as in Figure 7, and mean.tsv holds the mean over the
 # timed searches.

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Figure 12, GANNS curves: SIFT1M with maximum degree 64 and 128.
+# Figure 13, GANNS curves: SIFT1M with maximum degree 64 and 128.
 # Usage:  bash experiments/topk_degree/run_ganns_degree.sh
 # Needs:  experiments/equal_degree/build_ganns.sh 128 l2 (128 = SIFT1M dimension), build_indexes.sh ganns sift1M <degree>
 # Output: $OUT_DIR/equal_degree/ganns/sift1M-d<degree>/k10/

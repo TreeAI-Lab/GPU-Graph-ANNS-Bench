@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build the graphs and indexes searched in Figures 1, 7 and 10.
+# Build the graphs and indexes searched in Figures 1, 7, and 11.
 # Usage: bash experiments/qps_recall/build_graphs.sh [dataset ...]      (default: all datasets of datasets.sh)
 #   SYSTEMS  systems to build, default "cagra ggnn ganns song bang pilotann"
 #   FORCE=1  rebuild indexes that already exist

@@ -1,5 +1,5 @@
 #!/bin/bash
-# CAGRA search of the equal-degree runs (Figures 5(a), 9): cagra_build_search search with search width 1, internal top-k
+# CAGRA search of the equal-degree runs (Figures 6(b) and 8): cagra_build_search search with search width 1, internal top-k
 # 128 and team size 8 for every value of max_iterations, then Recall@10 of the result file (cagra_build_search
 # returns k = 10). cagra_build_search prints no search time.
 #

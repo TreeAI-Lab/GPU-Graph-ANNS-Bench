@@ -49,7 +49,7 @@ dim_of() {
   esac
 }
 
-# Maximum degree used for every system on a dataset (Tables 5 and 6)
+# Maximum degree used for every system on a dataset (Table 4)
 degree_of() {
   case $1 in
     sift1M|deep1M|deep100M) echo 32 ;; nytimes|deep10M) echo 64 ;; glove200) echo 96 ;;
@@ -97,7 +97,7 @@ gt_ivecs() {
   echo "$out"
 }
 
-# GNU time -v reports the peak resident memory of a build (Tables 5 and 6, host memory)
+# GNU time -v reports the peak resident memory of a build (Table 4, host memory)
 time_cmd() {
   if [ -x "$ENV_BUILD/bin/time" ]; then
     echo "$ENV_BUILD/bin/time -v"

@@ -1,5 +1,5 @@
 #!/bin/bash
-# One-time load of Figure 6: host-to-device copy time of the base vectors and of each system's graph,
+# One-time load of Figure 9: host-to-device copy time of the base vectors and of each system's graph,
 # measured by $BIN_DIR/h2d_copy_bench (pageable host buffer, WARMUP untimed and REPS timed cudaMemcpy
 # calls; the figure uses mean_ms). Each system's graph is copied on deep1M and deep10M; deep100M
 # copies the base vectors and the CAGRA graph.

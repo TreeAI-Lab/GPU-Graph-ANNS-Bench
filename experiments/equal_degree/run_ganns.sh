@@ -1,5 +1,5 @@
 #!/bin/bash
-# GANNS search of the equal-degree runs (Figures 5(a), 9, 12; Tables 5 and 6 for the average degree and
+# GANNS search of the equal-degree runs (Figures 6(b), 8, and 13; Table 4 for the average degree and
 # the connected components, which the query program prints): per candidate list size e the query program runs
 # once as an untimed warm-up and then TIMED_RUNS times (default 3; repeat_runs in common.sh, one process per
 # run). The query program computes Recall@K itself against the ground truth in ivecs format. The log of a setting holds

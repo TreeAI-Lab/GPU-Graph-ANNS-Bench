@@ -1,5 +1,5 @@
 #!/bin/bash
-# Figure 12, DiskANN disk-index curves: SIFT1M with maximum degree 64 and 128.
+# Figure 13, DiskANN disk-index curves: SIFT1M with maximum degree 64 and 128.
 # Usage:  bash experiments/topk_degree/run_vamana_degree.sh
 # Needs:  experiments/equal_degree/build_search_disk_index.sh, build_indexes.sh vamana sift1M <degree>
 # Output: $OUT_DIR/equal_degree/vamana/sift1M-d<degree>/k10/

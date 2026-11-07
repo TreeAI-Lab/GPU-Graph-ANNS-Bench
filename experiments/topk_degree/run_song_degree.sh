@@ -1,5 +1,5 @@
 #!/bin/bash
-# Figure 12, SONG curves: SIFT1M with maximum degree 64 and 128.
+# Figure 13, SONG curves: SIFT1M with maximum degree 64 and 128.
 # Usage:  bash experiments/topk_degree/run_song_degree.sh
 # Needs:  experiments/equal_degree/build_song.sh sift1M <degree>, build_indexes.sh song sift1M <degree>
 # Output: $OUT_DIR/equal_degree/song/sift1M-d<degree>/k10/

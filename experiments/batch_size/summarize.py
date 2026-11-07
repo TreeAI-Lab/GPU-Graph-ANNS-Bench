@@ -1,4 +1,4 @@
-"""Merge the batch-size sweeps on SIFT1M and pick the points of Figure 8.
+"""Merge the batch-size sweeps on SIFT1M and pick the points of Figure 10.
 
 Reads <root>/<batch>/<algo>/sweep.tsv for CAGRA, GGNN, GANNS and SONG, <root>/bang/<batch>/sweep.tsv and
 <root>/pilotann/<batch>/sweep.tsv, and, if present, the `row` lines of <root>/hnsw/<batch>.log (faiss_hnsw). Writes

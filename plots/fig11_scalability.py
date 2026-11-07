@@ -1,8 +1,8 @@
-"""Figure 10: QPS near 95% Recall@10 on DEEP1M, DEEP10M and DEEP100M. A triangle marks a build that ran out of memory.
+"""Figure 11: QPS near 95% Recall@10 on DEEP1M, DEEP10M and DEEP100M. A triangle marks a build that ran out of memory.
 
-Input: results/fig10_scalability.csv (time per 10,000 queries at the plotted QPS: kernel time for SONG, GGNN, GANNS and CAGRA,
+Input: results/fig11_scalability.csv (time per 10,000 queries at the plotted QPS: kernel time for SONG, GGNN, GANNS and CAGRA,
 wall time for BANG and PilotANN; status below_target marks a curve that stops
-below the minimum recall of summarize.py, drawn as a label). Output: fig10_scalability.pdf and fig10_legend.pdf.
+below the minimum recall of summarize.py, drawn as a label). Output: fig11_scalability.pdf and fig11_legend.pdf.
 """
 import logging
 import os
@@ -20,12 +20,12 @@ DATASETS = [('deep1M', 'DEEP1M'), ('deep10M', 'DEEP10M'), ('deep100M', 'DEEP100M
 COLORS = [(244, 241, 222), (223, 122, 94), (60, 64, 91)]
 BAR_W = 0.26
 OOM = dict(marker='v', markersize=18, color='yellow', markeredgecolor='black', markeredgewidth=1)
-TARGET = 0.95  # recall at which results/fig10_scalability.csv reads the curves
+TARGET = 0.95  # recall at which results/fig11_scalability.csv reads the curves
 
 
 def main() -> None:
     args = style.parse_args(__doc__.splitlines()[0])
-    d = style.read(args, 'fig10_scalability.csv')
+    d = style.read(args, 'fig11_scalability.csv')
     d['qps'] = (1e4 / (d['time_us_per_10k'] / 1e6)).fillna(0)
     d['status'] = d['status'].fillna('') if 'status' in d else ''
     systems = list(d['system'].unique())
@@ -59,13 +59,13 @@ def main() -> None:
     plt.text(tx + (xlim[1] - xlim[0]) * 0.04, ty, 'means OOM.', color='red', fontdict={'family': 'Times New Roman'},
              verticalalignment='center')
     style.fit_text(plt.gcf(), 0.78 * style.COL_W, tight_layout=True)
-    out = os.path.join(args.out, 'fig10_scalability.pdf')
+    out = os.path.join(args.out, 'fig11_scalability.pdf')
     plt.savefig(out, dpi=300, bbox_inches='tight')
     plt.close()
     logger.info('wrote %s', out)
     handles = [Patch(facecolor=tuple(c / 255 for c in color), edgecolor='black', linewidth=0.8, label=name)
                for (_, name), color in zip(DATASETS, COLORS)]
-    out = os.path.join(args.out, 'fig10_legend.pdf')
+    out = os.path.join(args.out, 'fig11_legend.pdf')
     style.save_legend(handles, out, ncol=len(handles), prop={'family': 'Times New Roman', 'size': 9},
                       handlelength=1.2, handletextpad=0.4, columnspacing=1.2)
     logger.info('wrote %s', out)

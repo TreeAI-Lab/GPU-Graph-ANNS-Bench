@@ -1,5 +1,5 @@
 #!/bin/bash
-# GGNN search of the equal-degree runs (Figures 5(a), 9, 12): per max_iterations value the driver
+# GGNN search of the equal-degree runs (Figures 6(b), 8, and 13): per max_iterations value the driver
 # runs its query once as an untimed warm-up and then TIMED_RUNS times (default 3; repeat_runs in common.sh,
 # one process per run), and Recall@K is computed from the result file of every timed run. The log of a setting holds all
 # runs after marker lines.

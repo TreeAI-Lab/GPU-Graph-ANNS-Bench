@@ -1,7 +1,7 @@
-"""Figure 8: QPS and time per batch on SIFT1M at 95% Recall@10 for batch sizes 1 to 10,000.
+"""Figure 10: QPS and time per batch on SIFT1M at 95% Recall@10 for batch sizes 1 to 10,000.
 
 Batches run one after another, so the time per batch is the batch size divided by QPS.
-Input: results/fig08_batch_size.csv. Output: fig08_qps.pdf, fig08_latency.pdf, fig08_legend.pdf.
+Input: results/fig10_batch_size.csv. Output: fig10_qps.pdf, fig10_latency.pdf, fig10_legend.pdf.
 """
 import logging
 import os
@@ -43,14 +43,14 @@ def panel(d: pd.DataFrame, systems: List[str], batches: List[int], column: str, 
 
 def main() -> None:
     args = style.parse_args(__doc__.splitlines()[0])
-    d = style.read(args, 'fig08_batch_size.csv')
+    d = style.read(args, 'fig10_batch_size.csv')
     d['batch_ms'] = d['batch_size'] / d['qps'] * 1000.0
     systems, batches = list(d['system'].unique()), sorted(d['batch_size'].unique())
-    panel(d, systems, batches, 'qps', 'QPS', os.path.join(args.out, 'fig08_qps.pdf'))
-    panel(d, systems, batches, 'batch_ms', 'Latency (ms)', os.path.join(args.out, 'fig08_latency.pdf'))
+    panel(d, systems, batches, 'qps', 'QPS', os.path.join(args.out, 'fig10_qps.pdf'))
+    panel(d, systems, batches, 'batch_ms', 'Latency (ms)', os.path.join(args.out, 'fig10_latency.pdf'))
     handles = [plt.Rectangle((0, 0), 1, 1, facecolor=COLORS[i % len(COLORS)], edgecolor='black', linewidth=0.8,
                              label=f'Batch {b}') for i, b in enumerate(batches)]
-    out = os.path.join(args.out, 'fig08_legend.pdf')
+    out = os.path.join(args.out, 'fig10_legend.pdf')
     style.save_legend(handles, out, ncol=3, prop={'family': 'Times New Roman', 'size': 9}, columnspacing=1.0,
                       handlelength=1.2, handletextpad=0.4)
     logger.info('wrote %s', out)
