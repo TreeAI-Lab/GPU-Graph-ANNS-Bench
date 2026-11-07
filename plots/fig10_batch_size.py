@@ -26,7 +26,7 @@ def panel(d: pd.DataFrame, systems: List[str], batches: List[int], column: str, 
     fig, ax = plt.subplots(figsize=(8, 7))
     for i, b in enumerate(batches):
         vals = [d[(d['system'] == s) & (d['batch_size'] == b)][column].values[0] for s in systems]
-        ax.bar(x + i * WIDTH, vals, WIDTH, label=f'Batch size {b}', color=COLORS[i % len(COLORS)], edgecolor='black',
+        ax.bar(x + i * WIDTH, vals, WIDTH, label=f'Batch size={b}', color=COLORS[i % len(COLORS)], edgecolor='black',
                linewidth=2.25)
     ax.set_xticks(x + WIDTH * (len(batches) - 1) / 2)
     ax.set_xticklabels(systems)
@@ -49,10 +49,10 @@ def main() -> None:
     panel(d, systems, batches, 'qps', 'QPS', os.path.join(args.out, 'fig10_qps.pdf'))
     panel(d, systems, batches, 'batch_ms', 'Latency (ms)', os.path.join(args.out, 'fig10_latency.pdf'))
     handles = [plt.Rectangle((0, 0), 1, 1, facecolor=COLORS[i % len(COLORS)], edgecolor='black', linewidth=0.8,
-                             label=f'Batch size {b}') for i, b in enumerate(batches)]
+                             label=f'Batch size={b}') for i, b in enumerate(batches)]
     out = os.path.join(args.out, 'fig10_legend.pdf')
     style.save_legend(handles, out, ncol=3, prop={'family': 'Times New Roman', 'size': 9}, columnspacing=0.5,
-                      handlelength=1.2, handletextpad=0.4)
+                      handlelength=0.8, handletextpad=0.3)
     logger.info('wrote %s', out)
 
 
